@@ -39,9 +39,6 @@ class OrionDiscardPlugin {
         // Register shortcode
         add_shortcode('vform', array($this, 'render_form_shortcode'));
         
-        // Add admin menu
-        add_action('admin_menu', array($this, 'add_admin_menu'));
-        
         // Enqueue scripts and styles for frontend and admin
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
@@ -69,23 +66,129 @@ class OrionDiscardPlugin {
             'id' => '353876'
         ), $atts);
         
-        // Force load admin assets when shortcode is used
-        $this->enqueue_admin_assets();
+        // Enqueue assets for frontend shortcode
+        $this->enqueue_assets();
         
-        // Redirect to admin form
-        $admin_url = admin_url('admin.php?page=orion-discard-form&form_id=' . $atts['id']);
-        
-        // Return a message with link to admin form
+        // Start output buffering
         ob_start();
         ?>
-        <div class="orion-shortcode-redirect">
-            <div class="notice notice-info">
-                <p><?php _e('Para acceder al formulario de descarte, por favor utilice el área de administración:', 'orion-discard'); ?></p>
-                <p>
-                    <a href="<?php echo esc_url($admin_url); ?>" class="button button-primary">
-                        <?php _e('Ir al Formulario de Descarte', 'orion-discard'); ?>
-                    </a>
+        <div id="orion-discard-form-<?php echo esc_attr($atts['id']); ?>" class="wrap orion-discard-admin-form">
+            <h1 class="wp-heading-inline"><?php _e('Formulario de Descarte de Material de Soya', 'orion-discard'); ?></h1>
+            
+            <form id="discard-form" method="post" class="orion-admin-form">
+                <?php wp_nonce_field('orion_discard_form', 'orion_discard_nonce'); ?>
+                
+                <table class="form-table" role="presentation">
+                    <tbody>
+                        <tr>
+                            <th scope="row">
+                                <label for="farm-select"><?php _e('Finca:', 'orion-discard'); ?></label>
+                            </th>
+                            <td>
+                                <select id="farm-select" name="farm" class="regular-text" required>
+                                    <option value=""><?php _e('Seleccionar Finca...', 'orion-discard'); ?></option>
+                                </select>
+                                <p class="description"><?php _e('Seleccione la finca donde se realizará el descarte.', 'orion-discard'); ?></p>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <th scope="row">
+                                <label for="section-select"><?php _e('Sección:', 'orion-discard'); ?></label>
+                            </th>
+                            <td>
+                                <select id="section-select" name="section" class="regular-text" required disabled>
+                                    <option value=""><?php _e('Seleccionar Sección...', 'orion-discard'); ?></option>
+                                </select>
+                                <p class="description"><?php _e('Seleccione la sección correspondiente a la finca.', 'orion-discard'); ?></p>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <th scope="row">
+                                <label for="field-select"><?php _e('Campo:', 'orion-discard'); ?></label>
+                            </th>
+                            <td>
+                                <select id="field-select" name="field" class="regular-text" required disabled>
+                                    <option value=""><?php _e('Seleccionar Campo...', 'orion-discard'); ?></option>
+                                </select>
+                                <p class="description"><?php _e('Seleccione el campo específico para el descarte.', 'orion-discard'); ?></p>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <th scope="row">
+                                <label for="scanner-input"><?php _e('Código Escaneado:', 'orion-discard'); ?></label>
+                            </th>
+                            <td>
+                                <input type="text" id="scanner-input" name="scanned_code" class="regular-text" 
+                                       placeholder="<?php _e('Escanear código aquí...', 'orion-discard'); ?>" required>
+                                <p class="description"><?php _e('Escanee o ingrese manualmente el código del material a descartar.', 'orion-discard'); ?></p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <p class="submit">
+                    <button type="submit" id="submit-discard" class="button button-primary">
+                        <?php _e('Registrar Descarte', 'orion-discard'); ?>
+                    </button>
                 </p>
+            </form>
+            
+            <hr class="wp-header-end">
+            
+            <h2><?php _e('Registros de Descarte', 'orion-discard'); ?></h2>
+            <div class="tablenav top">
+                <div class="alignleft actions">
+                    <p class="description"><?php _e('Histórico de descartes registrados en el sistema.', 'orion-discard'); ?></p>
+                </div>
+            </div>
+            
+            <table id="discards-table" class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th class="manage-column"><?php _e('Estado', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Crop', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Owner', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Submission ID', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Field', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('EXTNO', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Range', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Row', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('BARCD', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Plot ID', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Subplot ID', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('MATID', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('ABBRC', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('SD Instruction', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Record Type', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Site', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Year', 'orion-discard'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Modal para avisar de código duplicado -->
+        <div id="duplicate-barcode-modal" class="orion-modal" style="display: none;">
+            <div class="orion-modal-content">
+                <div class="orion-modal-header">
+                    <h3><?php _e('Código ya descartado', 'orion-discard'); ?></h3>
+                    <span class="orion-modal-close">&times;</span>
+                </div>
+                <div class="orion-modal-body">
+                    <p><?php _e('El código escaneado ya ha sido descartado anteriormente.', 'orion-discard'); ?></p>
+                    <p><strong><?php _e('Código:', 'orion-discard'); ?></strong> <span id="duplicate-code-display"></span></p>
+                </div>
+                <div class="orion-modal-footer">
+                    <button type="button" class="button button-primary" id="modal-close-btn">
+                        <?php _e('Entendido', 'orion-discard'); ?>
+                    </button>
+                </div>
             </div>
         </div>
         <?php
