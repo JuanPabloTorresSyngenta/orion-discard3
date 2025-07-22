@@ -1,0 +1,341 @@
+/* Orion Discard Plugin Styles */
+
+/* Frontend styles (legacy) */
+.orion-discard-form {
+    max-width: 800px;
+    margin: 20px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.orion-discard-form h3 {
+    color: #333;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #0073aa;
+    padding-bottom: 10px;
+}
+
+.orion-discard-form .form-group {
+    margin-bottom: 15px;
+}
+
+.orion-discard-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #555;
+}
+
+.orion-discard-form select,
+.orion-discard-form input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: #fff;
+    transition: border-color 0.3s ease;
+}
+
+.orion-discard-form select:focus,
+.orion-discard-form input[type="text"]:focus {
+    outline: none;
+    border-color: #0073aa;
+    box-shadow: 0 0 5px rgba(0, 115, 170, 0.3);
+}
+
+.orion-discard-form select:disabled {
+    background-color: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.orion-discard-form button {
+    background-color: #0073aa;
+    color: white;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.orion-discard-form button:hover {
+    background-color: #005a87;
+}
+
+.orion-discard-form button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* Scanner input highlight */
+.orion-discard-form #scanner-input {
+    border-color: #4CAF50;
+    background-color: #f9fff9;
+}
+
+/* DataTables container */
+#discards-table-container {
+    margin-top: 30px;
+}
+
+#discards-table-container h4 {
+    color: #333;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+}
+
+/* Admin-style form overrides */
+.orion-discard-admin-form {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.orion-discard-admin-form .form-table th {
+    width: 200px;
+    padding: 20px 10px 20px 0;
+    font-weight: 600;
+}
+
+.orion-discard-admin-form .form-table td {
+    padding: 15px 10px;
+}
+
+.orion-discard-admin-form #scanner-input {
+    background-color: #f0fff0 !important;
+    border-color: #4CAF50 !important;
+}
+
+.orion-discard-admin-form select:disabled,
+.orion-discard-admin-form input:disabled {
+    background-color: #f6f7f7 !important;
+    color: #757575 !important;
+    cursor: not-allowed;
+}
+
+.orion-discard-admin-form .regular-text {
+    width: 300px;
+}
+
+.orion-discard-admin-form .description {
+    font-style: italic;
+    color: #666;
+    margin: 5px 0 0 0;
+}
+
+/* Admin table styles */
+.orion-discard-admin-form #discards-table {
+    margin-top: 20px;
+    border-collapse: collapse;
+}
+
+.orion-discard-admin-form #discards-table th {
+    background-color: #f1f1f1;
+    font-weight: 600;
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #c3c4c7;
+}
+
+.orion-discard-admin-form #discards-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.orion-discard-admin-form #discards-table tbody tr:hover {
+    background-color: #f6f7f7;
+}
+
+/* Loading states */
+.loading {
+    position: relative;
+}
+
+.loading:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Success/Error messages with admin styling */
+.orion-message {
+    padding: 12px;
+    margin: 15px 0;
+    border-radius: 4px;
+    font-weight: 500;
+    border-left: 4px solid;
+}
+
+.orion-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left-color: #28a745;
+}
+
+.orion-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left-color: #dc3545;
+}
+
+.orion-message.notice {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-left-color: #17a2b8;
+}
+
+/* WordPress admin integration */
+.wrap .orion-discard-admin-form h1 {
+    margin-bottom: 20px;
+}
+
+.wrap .orion-discard-admin-form .wp-header-end {
+    margin: 20px 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .orion-discard-form,
+    .orion-discard-admin-form {
+        max-width: 100%;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .orion-discard-form select,
+    .orion-discard-form input[type="text"],
+    .orion-discard-admin-form .regular-text {
+        font-size: 16px; /* Prevent zoom on iOS */
+        width: 100%;
+    }
+    
+    .orion-discard-admin-form .form-table th,
+    .orion-discard-admin-form .form-table td {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+    }
+    
+    .orion-discard-admin-form .form-table th {
+        border-bottom: none;
+        margin-bottom: 5px;
+    }
+}
+
+/* Modal styling */
+.orion-modal {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.orion-modal-content {
+    background-color: #fff;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+}
+
+.orion-modal-header {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.orion-modal-header h2 {
+    margin: 0;
+    color: #d63384;
+    font-size: 1.5em;
+}
+
+.orion-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+}
+
+.orion-modal-close:hover {
+    color: #333;
+}
+
+.orion-modal-body {
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    line-height: 1.5;
+}
+
+.orion-modal-footer {
+    text-align: right;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+.orion-modal-footer .button {
+    margin-left: 10px;
+}
+
+.orion-modal-footer .button-primary {
+    background-color: #d63384;
+    border-color: #d63384;
+}
+
+.orion-modal-footer .button-primary:hover {
+    background-color: #b02a5b;
+    border-color: #b02a5b;
+}
+
+/* DataTables enhancements for new columns */
+.orion-discard-form #discards-table .text-center {
+    text-align: center;
+}
+
+.orion-discard-form #discards-table .font-weight-bold {
+    font-weight: bold;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+    .orion-modal-content {
+        margin: 10% auto;
+        width: 95%;
+        padding: 15px;
+    }
+    
+    .orion-modal-footer .button {
+        display: block;
+        width: 100%;
+        margin: 5px 0;
+        text-align: center;
+    }
+}
