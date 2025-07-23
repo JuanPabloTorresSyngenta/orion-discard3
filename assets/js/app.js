@@ -1,7 +1,7 @@
 /**
- * Orion Discard Plugin JavaScript
+ * Orion Discard Plugin - Material Discard System
+ * Enhanced cascading dropdown with proper default selection behavior
  */
-
 jQuery(document).ready(function ($) {
   console.log("Orion Discard Script Loading...");
 
@@ -16,60 +16,115 @@ jQuery(document).ready(function ($) {
   initializeForm();
 
   function initializeForm() {
-    // Load initial data from Orion API
+    console.log("=== INITIALIZING ORION DISCARD FORM ===");
+    
+    // Bind event handlers first
+    bindEventHandlers();
+    
+    // Load data and initialize components
     loadFieldsData();
 
-    // Initialize DataTable
     initializeDataTable();
-
-    // Bind event handlers
-    bindEventHandlers();
   }
 
   function loadFieldsData() {
-    // Show loading state
-    $("#farm-select").addClass("loading");
+    console.log("=== LOADING ORION API DATA ===");
 
-    // Get site from current user (passed from PHP)
+    $("#farms").addClass("loading");
+
     const site = orionDiscard.site || "PRSA";
 
-    // Make AJAX request to get fields data
     $.ajax({
       url: "http://192.168.96.84:8080/orion/wp-json/orion-maps-fields/v1/fields",
       method: "GET",
       data: { site: site },
       success: function (response) {
-        console.log("API Response:", response);
+        console.log("✅ Orion API Response:", response);
+        
         if (response.success && response.data && response.data.fields) {
           fieldsData = response.data.fields;
+          
+          debugFieldsData();
+
           populateFarmDropdown();
-          console.log(
-            "Loaded fields data for site:",
-            site,
-            "Total items:",
-            fieldsData.length
-          );
+          
+          console.log("✅ Loaded fields data for site:", site, "Total items:", fieldsData.length);
         } else {
-          console.log("Response structure:", response);
+          console.error("❌ Invalid API response structure:", response);
+
           showMessage("Error al cargar los datos de las fincas", "error");
         }
       },
       error: function (xhr, status, error) {
-        console.error("Error loading fields data:", error);
-        console.error("XHR:", xhr);
+        console.error("❌ Error loading Orion API data:", error);
+
+        console.error("XHR details:", xhr);
+
         showMessage("Error de conexión al cargar los datos", "error");
       },
       complete: function () {
-        $("#farm-select").removeClass("loading");
+        $("#farms").removeClass("loading");
       },
     });
   }
 
-  function populateFarmDropdown() {
-    const $farmSelect = $("#farm-select");
+  function debugFieldsData() {
+    console.log("=== ORION DATA STRUCTURE ANALYSIS ===");
+
+    console.log("Total items:", fieldsData.length);
+    
     const farms = fieldsData.filter((item) => item.field_type === "farm");
 
-    // Clear existing options (except the first one)
+    const sections = fieldsData.filter((item) => item.field_type === "sections");
+
+    const fields = fieldsData.filter((item) => item.field_type === "fields");
+    
+    console.log("Farms:", farms.length, farms);
+
+    console.log("Sections:", sections.length, sections);
+
+    console.log("Fields:", fields.length, fields);
+
+    // Farm-Section relationship analysis
+    console.log("=== FARM-SECTION RELATIONSHIPS ===");
+
+    farms.forEach(farm => {
+      const relatedSections = sections.filter(section => 
+        String(section.farm_name) === String(farm.id)
+      );
+
+      console.log(`Farm "${farm.title}" (ID: ${farm.id}) has ${relatedSections.length} sections:`, 
+        relatedSections.map(s => s.title));
+    });
+
+    // Section-Field relationship analysis
+    console.log("=== SECTION-FIELD RELATIONSHIPS ===");
+
+    sections.forEach(section => {
+      const relatedFields = fields.filter(field => 
+        String(field.farm_name) === String(section.farm_name) && 
+        String(field.section_name) === String(section.id)
+      );
+
+      console.log(`Section "${section.title}" (ID: ${section.id}) has ${relatedFields.length} fields:`, 
+        relatedFields.map(f => f.title));
+    });
+  }
+
+  function populateFarmDropdown() {
+    console.log("=== POPULATING FARM DROPDOWN ===");
+
+    const $farmSelect = $("#farms");
+    
+    if ($farmSelect.length === 0) {
+      console.error("❌ Farm select element not found!");
+
+      return;
+    }
+    
+    const farms = fieldsData.filter((item) => item.field_type === "farm");
+    
+    // Clear existing options (except the first placeholder)
     $farmSelect.find("option:not(:first)").remove();
 
     // Add farm options
@@ -79,17 +134,78 @@ jQuery(document).ready(function ($) {
       );
     });
 
-    console.log("Populated farms:", farms.length);
+    console.log("✅ Populated farms:", farms.length);
+    
+    // ENHANCEMENT: Auto-select if only one farm available
+    if (farms.length === 1) {
+      console.log("🎯 Auto-selecting single farm:", farms[0].title);
+
+      $farmSelect.val(farms[0].id);
+
+      // Manually trigger change to populate sections
+      $farmSelect.trigger('change');
+    }
   }
 
   function populateSectionDropdown(farmId) {
-    const $sectionSelect = $("#section-select");
-    const sections = fieldsData.filter(
-      (item) => item.field_type === "sections" && item.farm_name === farmId
-    );
+    console.log("=== POPULATING SECTION DROPDOWN ===");
 
-    // Clear existing options (except the first one)
-    $sectionSelect.find("option:not(:first)").remove();
+    console.log("🔍 Farm ID:", farmId, "Type:", typeof farmId);
+    
+    const $sectionSelect = $("#sections");
+    
+    if ($sectionSelect.length === 0) {
+      console.error("❌ Section select element not found!");
+
+      return;
+    }
+
+    if (!fieldsData || fieldsData.length === 0) {
+      console.error("❌ No Orion data available!");
+
+      showMessage("Datos no cargados. Intente recargar la página.", "error");
+
+      return;
+    }
+
+    // Filter sections for the selected farm
+    let sections = fieldsData.filter((item) => {
+      const isSection = item.field_type === "sections";
+
+      if (!isSection) return false;
+      
+      const farmMatches = String(item.farm_name) === String(farmId);
+      
+      console.log("🔍 Checking section:", {
+        id: item.id,
+        title: item.title,
+        farm_name: item.farm_name,
+        farmId: farmId,
+        matches: farmMatches
+      });
+      
+      return farmMatches;
+    });
+
+    console.log("✅ Found sections for farm:", sections.length, sections);
+
+    // // FIXED: Clear ALL options and rebuild from scratch
+    // $sectionSelect.empty();
+    
+    // // ENHANCED: Add default option with proper selection
+    // $sectionSelect.append(
+    //   $('<option value="" selected>Select a section...</option>')
+    // );
+    
+    if (sections.length === 0) {
+      console.warn("⚠️ No sections found for farm ID:", farmId);
+
+      $sectionSelect.prop("disabled", true);
+
+      showMessage("Esta finca no tiene secciones disponibles", "warning");
+
+      return;
+    }
 
     // Add section options
     sections.forEach(function (section) {
@@ -98,27 +214,91 @@ jQuery(document).ready(function ($) {
       );
     });
 
-    // Enable or disable the section dropdown
-    if (sections.length > 0) {
-      $sectionSelect.prop("disabled", false);
-    } else {
-      $sectionSelect.prop("disabled", true);
-    }
+    // Enable the section dropdown
+    $sectionSelect.prop("disabled", false);
 
-    console.log("Populated sections for farm", farmId, ":", sections.length);
+    console.log("✅ Section dropdown enabled with", sections.length, "options");
+    
+    // ENHANCED: Auto-select logic with better UX - solo si hay UNA sección
+    if (sections.length === 1) {
+      console.log("🎯 Single section available - auto-selecting:", sections[0].title);
+      
+      // CRITICAL: Set value and trigger change, but keep default option available
+      $sectionSelect.val(sections[0].id);
+      
+      setTimeout(() => {
+        console.log("🚀 Triggering section change event for auto-selection");
+        
+        // Only trigger if the value is still selected (user didn't change it)
+        if ($sectionSelect.val() === sections[0].id) {
+          $sectionSelect.trigger('change');
+        }
+      }, 100); // Reduced timeout for better responsiveness
+    } else {
+      // Multiple sections available - keep default selected for user choice
+      console.log("📋 Multiple sections available - user must choose");
+
+      $sectionSelect.val(""); // Ensure default option remains selected
+    }
   }
 
   function populateFieldDropdown(farmId, sectionId) {
-    const $fieldSelect = $("#field-select");
-    const fields = fieldsData.filter(
-      (item) =>
-        item.field_type === "fields" &&
-        item.farm_name === farmId &&
-        item.section_name === sectionId
+    console.log("=== POPULATING FIELD DROPDOWN ===");
+
+    console.log("🔍 Farm ID:", farmId, "Section ID:", sectionId);
+    
+    const $fieldSelect = $("#fields");
+
+    if ($fieldSelect.length === 0) {
+      console.error("❌ Field select element not found!");
+
+      return;
+    }
+
+    // Filter fields for the selected farm and section
+    const fields = fieldsData.filter((item) => {
+      const isField = item.field_type === "fields";
+
+      if (!isField) return false;
+      
+      const farmMatches = String(item.farm_name) === String(farmId);
+
+      const sectionMatches = String(item.section_name) === String(sectionId);
+
+      const matches = farmMatches && sectionMatches;
+      
+      console.log("🔍 Checking field:", {
+        id: item.id,
+        title: item.title,
+        farm_name: item.farm_name,
+        section_name: item.section_name,
+        farmId: farmId,
+        sectionId: sectionId,
+        matches: matches
+      });
+      
+      return matches;
+    });
+
+    console.log("✅ Found fields for section:", fields.length, fields);
+
+    // FIXED: Clear ALL options and rebuild from scratch
+    $fieldSelect.empty();
+    
+    // ENHANCED: Add default option with proper selection
+    $fieldSelect.append(
+      $('<option value="" selected>Select a field...</option>')
     );
 
-    // Clear existing options (except the first one)
-    $fieldSelect.find("option:not(:first)").remove();
+    if (fields.length === 0) {
+      console.warn("⚠️ No fields found for farm:", farmId, "section:", sectionId);
+
+      $fieldSelect.prop("disabled", true);
+
+      showMessage("Esta sección no tiene campos disponibles", "warning");
+
+      return;
+    }
 
     // Add field options
     fields.forEach(function (field) {
@@ -127,100 +307,245 @@ jQuery(document).ready(function ($) {
       );
     });
 
-    // Enable or disable the field dropdown
-    if (fields.length > 0) {
-      $fieldSelect.prop("disabled", false);
-    } else {
-      $fieldSelect.prop("disabled", true);
-    }
+    // Enable the field dropdown
+    $fieldSelect.prop("disabled", false);
 
-    console.log(
-      "Populated fields for farm",
-      farmId,
-      "section",
-      sectionId,
-      ":",
-      fields.length
+    console.log("✅ Field dropdown enabled with", fields.length, "options");
+    
+    // ENHANCED: Auto-select logic for fields - solo si hay UN campo
+    if (fields.length === 1) {
+      console.log("🎯 Single field available - auto-selecting:", fields[0].title);
+      
+      $fieldSelect.val(fields[0].id);
+      
+      setTimeout(() => {
+        console.log("🚀 Triggering field change event for auto-selection");
+        
+        // Only trigger if the value is still selected
+        if ($fieldSelect.val() === fields[0].id) {
+          $fieldSelect.trigger('change');
+        }
+      }, 100);
+    } else {
+      // Multiple fields available - keep default selected for user choice
+      console.log("📋 Multiple fields available - user must choose");
+
+      $fieldSelect.val(""); // Ensure default option remains selected
+    }
+  }
+
+  function resetSectionDropdown() {
+    console.log("🔄 Resetting section dropdown");
+
+    const $sectionSelect = $("#sections");
+    
+    // ENHANCED: Complete reset with proper default option
+    $sectionSelect.empty().prop("disabled", true);
+    
+    // Add the default option back as selected
+    $sectionSelect.append(
+      $('<option value="" selected>Select a section...</option>')
     );
   }
 
+  function resetFieldDropdown() {
+    console.log("🔄 Resetting field dropdown");
+
+    const $fieldSelect = $("#fields");
+    
+    // ENHANCED: Complete reset with proper default option
+    $fieldSelect.empty().prop("disabled", true);
+    
+    // Add the default option back as selected
+    $fieldSelect.append(
+      $('<option value="" selected>Select a field...</option>')
+    );
+  }
+
+  // ENHANCED: Event handlers with improved default option handling
   function bindEventHandlers() {
-    // Farm selection change
-    $("#farm-select").on("change", function () {
+    console.log("=== BINDING ORION DISCARD EVENT HANDLERS ===");
+    
+    // Farm selection handler with enhanced UX
+    $(document).off('change.orion-farms').on('change.orion-farms', '#farms', function () {
       const farmId = $(this).val();
 
-      // Reset dependent dropdowns
-      $("#section-select")
-        .val("")
-        .prop("disabled", true)
-        .find("option:not(:first)")
-        .remove();
-      $("#field-select")
-        .val("")
-        .prop("disabled", true)
-        .find("option:not(:first)")
-        .remove();
+      const farmName = $(this).find('option:selected').text();
+      
+      console.log("=== FARM SELECTION CHANGED ===");
 
-      if (farmId) {
+      console.log("🌱 Selected farm:", farmName, "(ID:", farmId, ")");
+      
+      // Reset dependent dropdowns with proper defaults
+      resetSectionDropdown();
+
+      resetFieldDropdown();
+      
+      // Clear any existing messages
+      $(".orion-message").remove();
+
+      // Populate sections if farm selected (not default option)
+      if (farmId && farmId !== "") {
+        console.log("🔄 Loading sections for farm:", farmId);
+
         populateSectionDropdown(farmId);
+      } else {
+        console.log("📝 Default farm option selected - sections remain disabled");
       }
     });
 
-    // Section selection change
-    $("#section-select").on("change", function () {
+    // Section selection handler with enhanced validation
+    $(document).off('change.orion-sections').on('change.orion-sections', '#sections', function () {
       const sectionId = $(this).val();
-      const farmId = $("#farm-select").val();
+
+      const sectionName = $(this).find('option:selected').text();
+
+      const farmId = $("#farms").val();
+      
+      console.log("=== SECTION SELECTION CHANGED ===");
+
+      console.log("🌾 Selected section:", sectionName, "(ID:", sectionId, ")");
+
+      console.log("🔗 Current farm ID:", farmId);
 
       // Reset field dropdown
-      $("#field-select")
-        .val("")
-        .prop("disabled", true)
-        .find("option:not(:first)")
-        .remove();
+      resetFieldDropdown();
+      
+      // Clear any existing messages
+      $(".orion-message").remove();
 
-      if (sectionId && farmId) {
+      // Only populate fields if both farm and section are properly selected (not default options)
+      if (sectionId && sectionId !== "" && farmId && farmId !== "") {
+        console.log("🔄 Loading fields for farm:", farmId, "section:", sectionId);
+
         populateFieldDropdown(farmId, sectionId);
+      } else {
+        console.log("📝 Default section option selected - fields remain disabled");
       }
     });
 
-    // Form submission
-    $("#discard-form").on("submit", function (e) {
+    // Field selection handler with CSV integration
+    $(document).off('change.orion-fields').on('change.orion-fields', '#fields', function () {
+      const fieldId = $(this).val();
+
+      const fieldName = $(this).find('option:selected').text();
+      
+      console.log("=== FIELD SELECTION CHANGED ===");
+
+      console.log("🌻 Selected field:", fieldName, "(ID:", fieldId, ")");
+      
+      // Clear any existing messages
+      $(".orion-message").remove();
+      
+      // Only trigger CSV download for valid field selection (not default option)
+      if (fieldId && fieldId !== "" && typeof window.downloadAndProcessCSV === 'function') {
+        console.log("📥 Triggering CSV download for field:", fieldId);
+
+        window.downloadAndProcessCSV(fieldId);
+      } else if (fieldId && fieldId !== "") {
+        console.warn("⚠️ CSV download function not available");
+      } else {
+        console.log("📝 Default field option selected - no CSV download");
+      }
+    });
+
+    // Form submission handler
+    $(document).off('submit.orion-form').on('submit.orion-form', '#vform-form', function (e) {
       e.preventDefault();
+
+      console.log("=== FORM SUBMISSION ===");
+
       submitDiscardForm();
     });
 
-    // Scanner input - auto-focus for barcode scanners
-    $("#scanner-input").on("focus", function () {
+    // Scanner input handlers
+    $(document).off('focus.orion-scanner').on('focus.orion-scanner', '#scanner-input', function () {
       $(this).select();
     });
+
+    $(document).off('input.orion-scanner change.orion-scanner').on('input.orion-scanner change.orion-scanner', '#scanner-input', function () {
+      barCodeInputChange();
+    });
+    
+    // Log successful binding
+    console.log("✅ Orion Discard event handlers bound successfully");
+
+    console.log("📊 Elements found:");
+
+    console.log("- Farms dropdown:", $("#farms").length);
+
+    console.log("- Sections dropdown:", $("#sections").length);
+
+    console.log("- Fields dropdown:", $("#fields").length);
+
+    console.log("- Form:", $("#vform-form").length);
+
+    console.log("- Scanner input:", $("#scanner-input").length);
   }
 
+  // ENHANCED: Form validation with proper default option checking
   function submitDiscardForm() {
-    const scannedCode = $("#scanner-input").val();
+    console.log("=== SUBMITTING DISCARD FORM ===");
+    
+    const farmId = $("#farms").val();
 
-    // Validate form
-    if (
-      !$("#farm-select").val() ||
-      !$("#section-select").val() ||
-      !$("#field-select").val() ||
-      !scannedCode
-    ) {
-      showMessage("Por favor complete todos los campos", "error");
+    const sectionId = $("#sections").val();
+
+    const fieldId = $("#fields").val();
+
+    const scannedCode = $("#scanner-input").val();
+    
+    console.log("📋 Form data:", {
+      farmId: farmId,
+      sectionId: sectionId,
+      fieldId: fieldId,
+      scannedCode: scannedCode
+    });
+
+    // ENHANCED: Validate all required fields (excluding default options)
+    const validationErrors = [];
+    
+    if (!farmId || farmId === "") {
+      validationErrors.push("Debe seleccionar una finca");
+    }
+    
+    if (!sectionId || sectionId === "") {
+      validationErrors.push("Debe seleccionar una sección");
+    }
+    
+    if (!fieldId || fieldId === "") {
+      validationErrors.push("Debe seleccionar un campo");
+    }
+    
+    if (!scannedCode || scannedCode.trim() === "") {
+      validationErrors.push("Debe escanear un código");
+    }
+
+    if (validationErrors.length > 0) {
+      console.error("❌ Form validation failed:", validationErrors);
+
+      showMessage("Por favor complete todos los campos: " + validationErrors.join(", "), "error");
+
       return;
     }
 
-    // Check for duplicate BARCD
+    // Check for duplicate barcode
     checkDuplicateBarcode(scannedCode, function (isDuplicate) {
       if (isDuplicate) {
+        console.warn("⚠️ Duplicate barcode detected:", scannedCode);
+
         showDuplicateModal(scannedCode);
       } else {
+        console.log("✅ Barcode validation passed - proceeding with submission");
+
         proceedWithSubmission();
       }
     });
   }
 
-  // Function to check for duplicate barcode
   function checkDuplicateBarcode(barcode, callback) {
+    console.log("🔍 Checking for duplicate barcode:", barcode);
+    
     $.ajax({
       url: orionDiscard.ajaxUrl,
       method: "POST",
@@ -230,121 +555,148 @@ jQuery(document).ready(function ($) {
         nonce: orionDiscard.nonce,
       },
       success: function (response) {
-        if (response.success) {
-          callback(response.data.exists);
-        } else {
-          callback(false);
-        }
+        console.log("✅ Duplicate check response:", response);
+
+        callback(response.success ? response.data.exists : false);
       },
-      error: function () {
+      error: function (xhr, status, error) {
+        console.error("❌ Duplicate check failed:", error);
+
         callback(false);
       },
     });
   }
 
-  // Function to show duplicate modal
   function showDuplicateModal(barcode) {
+    console.log("🚨 Showing duplicate barcode modal for:", barcode);
+
     $("#duplicate-code-display").text(barcode);
+
     $("#duplicate-barcode-modal").show();
   }
 
-  // Modal event handlers
-  $(document).on("click", "#modal-close-btn", function () {
+  // Modal close handlers
+  $(document).on("click", "#modal-close-btn, .orion-modal-close", function () {
+    console.log("❌ Closing duplicate barcode modal");
+
     $("#duplicate-barcode-modal").hide();
   });
 
-  $(document).on("click", ".orion-modal-close", function () {
-    $("#duplicate-barcode-modal").hide();
-  });
-
-  // Function to proceed with form submission
   function proceedWithSubmission() {
+    console.log("🚀 Proceeding with form submission");
+    
     const formData = {
       action: "submit_discard",
       nonce: orionDiscard.nonce,
-      farm_id: $("#farm-select").val(),
-      farm_name: $("#farm-select option:selected").text(),
-      section_id: $("#section-select").val(),
-      section_name: $("#section-select option:selected").text(),
-      field_id: $("#field-select").val(),
-      field_name: $("#field-select option:selected").text(),
+      farm_id: $("#farms").val(),
+      farm_name: $("#farms option:selected").text(),
+      section_id: $("#sections").val(),
+      section_name: $("#sections option:selected").text(),
+      field_id: $("#fields").val(),
+      field_name: $("#fields option:selected").text(),
       scanned_code: $("#scanner-input").val(),
     };
 
-    // Disable submit button
-    $("#submit-discard").prop("disabled", true).text("Procesando...");
+    console.log("📤 Submitting form data:", formData);
 
-    // Submit via AJAX
+    // Disable submit button
+    $("#btn-submit").prop("disabled", true).text("Procesando...");
+
     $.ajax({
       url: orionDiscard.ajaxUrl,
       method: "POST",
       data: formData,
       success: function (response) {
+        console.log("✅ Form submission response:", response);
+        
         if (response.success) {
           showMessage("Descarte registrado exitosamente", "success");
+
           resetForm();
+
           refreshDataTable();
         } else {
-          showMessage(
-            "Error al registrar el descarte: " +
-              (response.data || "Error desconocido"),
-            "error"
-          );
+          console.error("❌ Form submission failed:", response.data);
+
+          showMessage("Error al registrar el descarte: " + (response.data || "Error desconocido"), "error");
         }
       },
       error: function (xhr, status, error) {
-        console.error("Error submitting form:", error);
+        console.error("❌ Form submission error:", error);
+
         showMessage("Error de conexión al enviar el formulario", "error");
       },
       complete: function () {
-        $("#submit-discard").prop("disabled", false).text("Registrar Descarte");
+        $("#btn-submit").prop("disabled", false).text("Submit");
       },
     });
   }
 
   function resetForm() {
-    $("#discard-form")[0].reset();
-    $("#section-select")
-      .prop("disabled", true)
-      .find("option:not(:first)")
-      .remove();
-    $("#field-select")
-      .prop("disabled", true)
-      .find("option:not(:first)")
-      .remove();
-    $("#scanner-input").focus();
+    console.log("🔄 Resetting Orion Discard form");
+    
+    // Reset form fields
+    $("#vform-form")[0].reset();
+    
+    // Reset dropdowns with proper defaults
+    resetSectionDropdown();
+
+    resetFieldDropdown();
+    
+    // ENHANCED: Ensure farm dropdown shows default option
+    const $farmSelect = $("#farms");
+
+    if ($farmSelect.length > 0) {
+      $farmSelect.val(""); // Reset to default option
+    }
+    
+    // Clear messages
+    $(".orion-message").remove();
+    
+    // Focus on scanner input
+    setTimeout(() => {
+      $("#scanner-input").focus();
+    }, 100);
   }
 
+  function barCodeInputChange() {
+    const barCodeValue = $("#scanner-input").val();
+
+    console.log("📱 Barcode input changed:", barCodeValue);
+    
+    // Trigger CSV download if barcode is valid and function available
+    if (barCodeValue && typeof window.downloadAndProcessCSV === 'function') {
+      console.log("📥 Triggering CSV download for barcode:", barCodeValue);
+
+      window.downloadAndProcessCSV(barCodeValue);
+    }
+  }
+
+  // DataTable initialization and management functions remain the same...
   function initializeDataTable() {
-    console.log("Initializing DataTable...");
-
-    // Check if DataTables is loaded
+    console.log("📊 Initializing Orion Discard DataTable...");
+    
     if (!$.fn.DataTable) {
-      console.error("DataTables is not loaded");
+      console.error("❌ DataTables library not loaded");
+
       showMessage("Error: DataTables no está cargado", "error");
+
       return;
     }
 
-    // Check if table exists
     if ($("#discards-table").length === 0) {
-      console.error("Table #discards-table not found");
+      console.error("❌ Discards table element not found");
+
       showMessage("Error: Tabla no encontrada", "error");
+
       return;
     }
-
-    console.log("Table found, proceeding with DataTable initialization...");
 
     try {
-      // First try with simple initialization
       dataTable = $("#discards-table").DataTable({
-        data: [], // Start with empty data
+        data: [],
         columns: [
-          {
-            data: "status",
-            title: "Estado",
-            className: "text-center",
-            defaultContent: "",
-          },
+          { data: "status", title: "Estado", className: "text-center", defaultContent: "" },
           { data: "crop", title: "Crop", defaultContent: "" },
           { data: "owner", title: "Owner", defaultContent: "" },
           { data: "submission_id", title: "Submission ID", defaultContent: "" },
@@ -352,26 +704,13 @@ jQuery(document).ready(function ($) {
           { data: "extno", title: "EXTNO", defaultContent: "" },
           { data: "range_val", title: "Range", defaultContent: "" },
           { data: "row_val", title: "Row", defaultContent: "" },
-          {
-            data: "barcd",
-            title: "*BARCD",
-            className: "font-weight-bold",
-            defaultContent: "",
-          },
+          { data: "barcd", title: "*BARCD", className: "font-weight-bold", defaultContent: "" },
           { data: "plot_id", title: "Plot ID", defaultContent: "" },
           { data: "subplot_id", title: "Subplot ID", defaultContent: "" },
           { data: "matid", title: "MATID", defaultContent: "" },
           { data: "abbrc", title: "ABBRC", defaultContent: "" },
-          {
-            data: "sd_instruction",
-            title: "SD Instruction",
-            defaultContent: "",
-          },
-          {
-            data: "vform_record_type",
-            title: "vform-record-type",
-            defaultContent: "",
-          },
+          { data: "sd_instruction", title: "SD Instruction", defaultContent: "" },
+          { data: "vform_record_type", title: "vform-record-type", defaultContent: "" },
           { data: "vdata_site", title: "vdata-site", defaultContent: "" },
           { data: "vdata_year", title: "vdata-year", defaultContent: "" },
         ],
@@ -396,19 +735,21 @@ jQuery(document).ready(function ($) {
           },
         },
         initComplete: function () {
-          console.log("DataTable initialized successfully");
-          // Now load data via AJAX
+          console.log("✅ DataTable initialized successfully");
+
           loadTableData();
         },
       });
     } catch (e) {
-      console.error("Error initializing DataTable:", e);
+      console.error("❌ DataTable initialization error:", e);
+
       showMessage("Error al inicializar la tabla: " + e.message, "error");
     }
   }
 
   function loadTableData() {
-    console.log("Loading table data...");
+    console.log("📊 Loading table data...");
+    
     $.ajax({
       url: orionDiscard.ajaxUrl,
       type: "POST",
@@ -417,22 +758,19 @@ jQuery(document).ready(function ($) {
         nonce: orionDiscard.nonce,
       },
       success: function (response) {
-        console.log("Table data response:", response);
+        console.log("✅ Table data loaded:", response);
+        
         if (response.success && dataTable) {
-          dataTable
-            .clear()
-            .rows.add(response.data || [])
-            .draw();
+          dataTable.clear().rows.add(response.data || []).draw();
         } else {
-          console.error("Table data error:", response.data);
-          showMessage(
-            "Error al cargar datos: " + (response.data || "Error desconocido"),
-            "error"
-          );
+          console.error("❌ Table data error:", response.data);
+
+          showMessage("Error al cargar datos: " + (response.data || "Error desconocido"), "error");
         }
       },
       error: function (xhr, status, error) {
-        console.error("Table data request failed:", status, error);
+        console.error("❌ Table data request failed:", status, error);
+
         showMessage("Error de conexión al cargar datos", "error");
       },
     });
@@ -440,21 +778,21 @@ jQuery(document).ready(function ($) {
 
   function refreshDataTable() {
     if (dataTable) {
-      console.log("Refreshing DataTable...");
+      console.log("🔄 Refreshing DataTable...");
+
       loadTableData();
     }
   }
 
   function showMessage(message, type) {
+    console.log(`💬 Showing ${type} message:`, message);
+    
     const messageHtml = `<div class="orion-message ${type}">${message}</div>`;
 
-    // Remove existing messages
     $(".orion-message").remove();
 
-    // Add new message
-    $("#discard-form").before(messageHtml);
-
-    // Auto-remove after 5 seconds
+    $("#vform-form").before(messageHtml);
+    
     setTimeout(function () {
       $(".orion-message").fadeOut(500, function () {
         $(this).remove();
@@ -467,42 +805,18 @@ jQuery(document).ready(function ($) {
     $("#scanner-input").focus();
   }, 500);
 
-  function bindEventHandlers() {
-    // ...existing code...
+  // Expose debug function for testing
+  window.debugOrionDiscard = function() {
+    console.log("=== ORION DISCARD DEBUG INFO ===");
 
-    // Bind dropdown change events for CSV downloading
-    $("#farm-select").on("change", function () {
-      const farmValue = $(this).val();
-      console.log("Farm changed:", farmValue);
+    console.log("Fields data loaded:", fieldsData.length);
 
-      if (farmValue) {
-        populateSectionDropdown(farmValue);
-      } else {
-        // Clear dependent dropdowns
-        resetSectionDropdown();
-        resetFieldDropdown();
-      }
-    });
+    console.log("Farms dropdown:", $("#farms").val());
 
-    $("#section-select").on("change", function () {
-      const sectionValue = $(this).val();
-      const farmValue = $("#farm-select").val();
+    console.log("Sections dropdown:", $("#sections").val());
 
-      console.log("Section changed:", sectionValue);
+    console.log("Fields dropdown:", $("#fields").val());
 
-      if (sectionValue && farmValue) {
-        populateFieldDropdown(farmValue, sectionValue);
-      } else {
-        resetFieldDropdown();
-      }
-    });
-
-    // Field selection will trigger CSV download via csv-handler.js
-    $("#field-select").on("change", function () {
-      const fieldValue = $(this).val();
-      console.log("Field changed:", fieldValue);
-
-      // CSV handler will automatically detect this change and download CSV
-    });
-  }
+    console.log("Scanner input:", $("#scanner-input").val());
+  };
 });

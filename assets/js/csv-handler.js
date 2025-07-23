@@ -24,7 +24,9 @@ jQuery(document).ready(function($) {
      */
     function checkIfAllSelectionsComplete() {
         const farmSelected = $('#farm-select').val();
+
         const sectionSelected = $('#section-select').val();
+
         const fieldSelected = $('#field-select').val();
         
         console.log('Checking selections:', {
@@ -51,6 +53,8 @@ jQuery(document).ready(function($) {
         }
         
         isDownloadingCSV = true;
+
+      
         
         // Show loading indicator
         showCSVLoadingIndicator(true);
@@ -73,7 +77,9 @@ jQuery(document).ready(function($) {
                 if (response.success && response.data) {
                     // Process the CSV data
                     processCsvData(response.data.csv_content);
-                    
+
+                $("#discards-table").DataTable().ajax.reload();
+
                     // Update the table with processed data
                     updateTableWithCsvData();
                     
@@ -117,6 +123,7 @@ jQuery(document).ready(function($) {
         
         // Get headers from first line
         const headers = parseCSVLine(lines[0]);
+
         console.log('CSV Headers:', headers);
         
         // Process data lines
@@ -147,17 +154,24 @@ jQuery(document).ready(function($) {
      */
     function parseCSVLine(line) {
         const result = [];
+
         let current = '';
+
         let inQuotes = false;
         
         for (let i = 0; i < line.length; i++) {
             const char = line[i];
             
             if (char === '"') {
+
                 inQuotes = !inQuotes;
+
             } else if (char === ',' && !inQuotes) {
+
                 result.push(current.trim());
+
                 current = '';
+
             } else {
                 current += char;
             }
@@ -207,6 +221,7 @@ jQuery(document).ready(function($) {
         
         // Add data to table
         window.discardsTable.rows.add(formattedData);
+
         window.discardsTable.draw();
         
         console.log('DataTable updated with CSV data:', formattedData.length + ' rows');
@@ -222,6 +237,7 @@ jQuery(document).ready(function($) {
         if (show) {
             // Add loading indicator to the table area
             if ($('#csv-loading').length === 0) {
+
                 $('#discards-table').before('<div id="csv-loading" class="csv-loading"><p>🔄 Descargando datos CSV...</p></div>');
             }
             $('#csv-loading').show();
@@ -236,11 +252,13 @@ jQuery(document).ready(function($) {
     function showMessage(message, type) {
         // Create message element if it doesn't exist
         if ($('#csv-message').length === 0) {
+
             $('#discards-table').before('<div id="csv-message" class="notice"></div>');
+
         }
         
         const $message = $('#csv-message');
-        
+
         $message.removeClass('notice-success notice-error notice-warning');
         
         if (type === 'success') {

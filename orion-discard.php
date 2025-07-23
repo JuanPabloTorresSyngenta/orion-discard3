@@ -22,6 +22,8 @@ define('ORION_DISCARD_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 define('ORION_DISCARD_PLUGIN_PATH', plugin_dir_path(__FILE__));
 
+
+
 // Main plugin class
 class OrionDiscardPlugin
 {
@@ -41,7 +43,7 @@ class OrionDiscardPlugin
         load_plugin_textdomain('orion-discard', false, dirname(plugin_basename(__FILE__)) . '/languages');
 
         // Register shortcode
-        add_shortcode('vform', array($this, 'render_form_shortcode'));
+        add_shortcode('orionDiscardForm', array($this, 'render_form_shortcode'));
 
         // Enqueue scripts and styles for frontend and admin
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
@@ -78,11 +80,14 @@ class OrionDiscardPlugin
         // Cleanup tasks on deactivation (if needed)
     }
 
+ 
+
     public function render_form_shortcode($atts)
     {
         $atts = shortcode_atts(array(
             'id' => '353876'
         ), $atts);
+        
 
         // Enqueue assets for frontend shortcode
         $this->enqueue_assets();
@@ -94,9 +99,12 @@ class OrionDiscardPlugin
 
             <h1 class="wp-heading-inline"><?php _e('Formulario de Descarte de Material de Soya', 'orion-discard'); ?></h1>
 
-            <form id="discard-form" method="post" class="orion-admin-form">
+            
+            <?= do_shortcode('[vform id=353876]'); ?>
+            
+            <!-- <form id="discard-form" method="post" class="orion-admin-form">
 
-                <?php wp_nonce_field('orion_discard_form', 'orion_discard_nonce'); ?>
+              
 
                 <table class="form-table" role="presentation">
 
@@ -163,11 +171,12 @@ class OrionDiscardPlugin
                         <?php _e('Registrar Descarte', 'orion-discard'); ?>
                     </button>
                 </p>
-            </form>
+            </form> -->
 
             <hr class="wp-header-end">
 
             <h2><?php _e('Registros de Descarte', 'orion-discard'); ?></h2>
+
             <div class="tablenav top">
                 <div class="alignleft actions">
                     <p class="description"><?php _e('Histórico de descartes registrados en el sistema.', 'orion-discard'); ?></p>
@@ -640,3 +649,5 @@ class OrionDiscardPlugin
 
 // Initialize the plugin
 new OrionDiscardPlugin();
+
+
