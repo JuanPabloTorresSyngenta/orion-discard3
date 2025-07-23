@@ -63,7 +63,9 @@ jQuery(document).ready(function ($) {
         showMessage("Error de conexión al cargar los datos", "error");
       },
       complete: function () {
+        
         $("#farms").removeClass("loading");
+
       },
     });
   }
@@ -129,9 +131,11 @@ jQuery(document).ready(function ($) {
 
     // Add farm options
     farms.forEach(function (farm) {
+
       $farmSelect.append(
         $("<option></option>").attr("value", farm.id).text(farm.title)
       );
+
     });
 
     console.log("✅ Populated farms:", farms.length);
@@ -148,6 +152,7 @@ jQuery(document).ready(function ($) {
   }
 
   function populateSectionDropdown(farmId) {
+
     console.log("=== POPULATING SECTION DROPDOWN ===");
 
     console.log("🔍 Farm ID:", farmId, "Type:", typeof farmId);
@@ -155,12 +160,14 @@ jQuery(document).ready(function ($) {
     const $sectionSelect = $("#sections");
     
     if ($sectionSelect.length === 0) {
+
       console.error("❌ Section select element not found!");
 
       return;
     }
 
     if (!fieldsData || fieldsData.length === 0) {
+
       console.error("❌ No Orion data available!");
 
       showMessage("Datos no cargados. Intente recargar la página.", "error");
@@ -170,6 +177,7 @@ jQuery(document).ready(function ($) {
 
     // Filter sections for the selected farm
     let sections = fieldsData.filter((item) => {
+
       const isSection = item.field_type === "sections";
 
       if (!isSection) return false;
@@ -198,6 +206,7 @@ jQuery(document).ready(function ($) {
     // );
     
     if (sections.length === 0) {
+
       console.warn("⚠️ No sections found for farm ID:", farmId);
 
       $sectionSelect.prop("disabled", true);
@@ -205,13 +214,16 @@ jQuery(document).ready(function ($) {
       showMessage("Esta finca no tiene secciones disponibles", "warning");
 
       return;
+
     }
 
     // Add section options
     sections.forEach(function (section) {
+
       $sectionSelect.append(
         $("<option></option>").attr("value", section.id).text(section.title)
       );
+
     });
 
     // Enable the section dropdown
@@ -226,15 +238,19 @@ jQuery(document).ready(function ($) {
       // CRITICAL: Set value and trigger change, but keep default option available
       $sectionSelect.val(sections[0].id);
       
-      setTimeout(() => {
-        console.log("🚀 Triggering section change event for auto-selection");
+      // setTimeout(() => {
+      //   console.log("🚀 Triggering section change event for auto-selection");
         
-        // Only trigger if the value is still selected (user didn't change it)
-        if ($sectionSelect.val() === sections[0].id) {
-          $sectionSelect.trigger('change');
-        }
-      }, 100); // Reduced timeout for better responsiveness
-    } else {
+      //   // Only trigger if the value is still selected (user didn't change it)
+      //   if ($sectionSelect.val() === sections[0].id) {
+
+      //     $sectionSelect.trigger('change');
+
+      //   }
+      // }, 100); // Reduced timeout for better responsiveness
+    } 
+    else 
+    {
       // Multiple sections available - keep default selected for user choice
       console.log("📋 Multiple sections available - user must choose");
 
