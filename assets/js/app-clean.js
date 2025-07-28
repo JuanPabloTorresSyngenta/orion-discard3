@@ -19,6 +19,9 @@ jQuery(document).ready(function ($) {
     // Load data and initialize components
     loadFieldsData();
     initializeDataTable();
+    
+    // Check CSV handler availability after a delay
+    setTimeout(checkCsvHandlerAvailability, 1000);
   }
 
   function loadFieldsData() {
@@ -33,6 +36,7 @@ jQuery(document).ready(function ($) {
             // Callback de éxito
             function(data) {
                 fieldsData = data;
+                debugFieldsData();
                 populateFarmDropdown();
             },
             // Callback de error
@@ -44,6 +48,28 @@ jQuery(document).ready(function ($) {
     } else {
         showMessage("Error: Funciones AJAX no cargadas", "error");
     }
+  }
+
+  function debugFieldsData() {
+    
+    const farms = fieldsData.filter((item) => item.field_type === "farm");
+    const sections = fieldsData.filter((item) => item.field_type === "sections");
+    const fields = fieldsData.filter((item) => item.field_type === "fields");
+    
+    // Farm-Section relationship analysis
+    farms.forEach(farm => {
+      const relatedSections = sections.filter(section => 
+        String(section.farm_name) === String(farm.id)
+      );
+    });
+
+    // Section-Field relationship analysis
+    sections.forEach(section => {
+      const relatedFields = fields.filter(field => 
+        String(field.farm_name) === String(section.farm_name) && 
+        String(field.section_name) === String(section.id)
+      );
+    });
   }
 
   function populateFarmDropdown() {
@@ -314,7 +340,7 @@ jQuery(document).ready(function ($) {
     });
 
     $(document).off('input.orion-scanner change.orion-scanner').on('input.orion-scanner change.orion-scanner', '#scanner-input', function () {
-      // No action needed - scanner input handled by form submission
+      barCodeInputChange();
     });
     
   }
@@ -435,6 +461,24 @@ jQuery(document).ready(function ($) {
     }, 100);
   }
 
+  function barCodeInputChange() {
+
+    const barCodeValue = $("#scanner-input").val();
+    
+    // Trigger CSV download if barcode is valid and function available
+    if (barCodeValue && typeof window.downloadAndProcessCSV === 'function') {
+      window.downloadAndProcessCSV(barCodeValue);
+    }
+  }
+
+  // Check CSV handler availability after initialization
+  function checkCsvHandlerAvailability() {
+    
+    if (!window.csvHandler && !window.checkIfFieldSelected) {
+      showMessage("Funcionalidad CSV no disponible", "warning");
+    }
+  }
+
   // DataTable initialization and management functions remain the same...
   function initializeDataTable() {
     
@@ -546,4 +590,8 @@ jQuery(document).ready(function ($) {
     $("#scanner-input").focus();
   }, 500);
 
+  // Expose debug function for testing
+  window.debugOrionDiscard = function() {
+    // Debug function available for testing
+  };
 });

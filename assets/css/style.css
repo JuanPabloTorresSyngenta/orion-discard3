@@ -49,6 +49,177 @@
     cursor: not-allowed;
 }
 
+/* Simple Data Table Fallback Styles */
+.simple-data-table,
+#discards-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.simple-data-table thead,
+#discards-table thead {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.simple-data-table th,
+#discards-table th {
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+    border-right: 1px solid #dee2e6;
+}
+
+.simple-data-table th:last-child,
+#discards-table th:last-child {
+    border-right: none;
+}
+
+.simple-data-table tbody tr,
+#discards-table tbody tr {
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s ease;
+}
+
+.simple-data-table tbody tr:hover,
+#discards-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.simple-data-table tbody tr:last-child,
+#discards-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.simple-data-table td,
+#discards-table td {
+    padding: 10px 8px;
+    vertical-align: middle;
+    color: #495057;
+    font-size: 13px;
+    border-right: 1px solid #f1f3f4;
+}
+
+.simple-data-table td:last-child,
+#discards-table td:last-child {
+    border-right: none;
+}
+
+.simple-data-table .text-center,
+#discards-table .text-center {
+    text-align: center;
+}
+
+/* Status indicators for both tables */
+.simple-data-table .status-pending,
+#discards-table .status-pending {
+    color: #dc3545;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.simple-data-table .status-completed,
+#discards-table .status-completed {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* WordPress table overrides */
+#discards-table.wp-list-table {
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+}
+
+#discards-table.wp-list-table th.manage-column {
+    background: #f6f7f7;
+    border-bottom: 1px solid #c3c4c7;
+    color: #2c3338;
+    font-size: 13px;
+    padding: 8px 10px;
+}
+
+#discards-table.wp-list-table tbody tr:nth-child(odd) {
+    background-color: #f9f9f9;
+}
+
+#discards-table.wp-list-table tbody tr:nth-child(even) {
+    background-color: #fff;
+}
+
+/* Empty state styling */
+#discards-table tbody tr.empty-state td {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+    font-style: italic;
+    background-color: #f9f9f9;
+}
+
+/* Loading state styling */
+#csv-loading {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 10px 0;
+    text-align: center;
+}
+
+#csv-loading p {
+    margin: 0;
+    color: #50575e;
+}
+
+/* Message styling */
+#csv-message {
+    margin: 10px 0;
+    padding: 12px;
+    border-left: 4px solid #72aee6;
+    background: #f0f6fc;
+}
+
+#csv-message.notice-success {
+    border-left-color: #00a32a;
+    background: #f0f6fc;
+    color: #1d2327;
+}
+
+#csv-message.notice-error {
+    border-left-color: #d63638;
+    background: #fcf0f1;
+    color: #1d2327;
+}
+
+#csv-message.notice-warning {
+    border-left-color: #dba617;
+    background: #fcf9e8;
+    color: #1d2327;
+}
+
+/* Responsive design for both tables */
+@media (max-width: 768px) {
+    .simple-data-table,
+    #discards-table {
+        font-size: 12px;
+    }
+    
+    .simple-data-table th,
+    .simple-data-table td,
+    #discards-table th,
+    #discards-table td {
+        padding: 6px 4px;
+    }
+}
+
 .orion-discard-form button {
     background-color: #0073aa;
     color: white;

@@ -7,8 +7,91 @@ jQuery(document).ready(function($) {
     
     // Variables globales
     let csvData = [];
+    let isDownloadingCSV = false;
     var site = orionDiscard.site || 'PRSA';
     var year = orionDiscard.year || new Date().getFullYear();
+    
+    /**
+     * Initialize empty DataTable (called only once on page load)
+     */
+    function initializeDataTable() {
+        
+        // Check if table element exists
+        if ($('#discards-table').length === 0) {
+            return false;
+        }
+        
+        // Check if DataTable is already initialized and destroy it
+        if ($.fn.DataTable.isDataTable('#discards-table')) {
+            $('#discards-table').DataTable().clear().destroy();
+        }
+        
+        try {
+            // Initialize empty DataTable
+            window.discardsTable = $('#discards-table').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json',
+                    emptyTable: "Seleccione un campo para cargar los datos",
+                    loadingRecords: "Cargando datos...",
+                    processing: "Procesando...",
+                    search: "Buscar:",
+                    lengthMenu: "Mostrar _MENU_ registros por página",
+                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    paginate: {
+                        first: "Primero",
+                        last: "Último",
+                        next: "Siguiente",
+                        previous: "Anterior"
+                    }
+                },
+                pageLength: 25,
+                responsive: true,
+                processing: false,
+                data: [], // Start completely empty
+                columns: [
+                    { data: 'status', title: 'Estado', width: '60px', className: 'text-center', orderable: false },
+                    { data: 'crop', title: 'Cultivo', width: '100px' },
+                    { data: 'owner', title: 'Propietario', width: '120px' },
+                    { data: 'submission_id', title: 'Submission ID', width: '120px' },
+                    { data: 'field', title: 'Campo', width: '100px' },
+                    { data: 'extno', title: 'ExtNo', width: '80px' },
+                    { data: 'range_val', title: 'Range', width: '70px' },
+                    { data: 'row_val', title: 'Row', width: '70px' },
+                    { data: 'barcd', title: 'Código de Barras', width: '150px' },
+                    { data: 'plot_id', title: 'Plot ID', width: '100px' },
+                    { data: 'subplot_id', title: 'Subplot ID', width: '100px' },
+                    { data: 'matid', title: 'Material ID', width: '120px' },
+                    { data: 'abbrc', title: 'ABBRC', width: '100px' },
+                    { data: 'sd_instruction', title: 'Instrucción', width: '100px' },
+                    { data: 'vform_record_type', title: 'Record Type', width: '120px' },
+                    { data: 'vdata_site', title: 'Site', width: '80px' },
+                    { data: 'vdata_year', title: 'Year', width: '80px' },
+                    { data: 'unique_val', title: 'Valor Único', width: '120px' }
+                ],
+                order: [[1, 'asc']],
+                columnDefs: [
+                    {
+                        targets: 0,
+                        render: function(data, type, row) {
+                            if (type === 'display') {
+                                if (data === '✗') {
+                                    return '<span class="status-pending" title="Pendiente de descarte">✗</span>';
+                                } else if (data === '✓') {
+                                    return '<span class="status-completed" title="Descartado">✓</span>';
+                                }
+                            }
+                            return data;
+                        }
+                    }
+                ]
+            });
+            
+            return true;
+            
+        } catch (error) {
+            return false;
+        }
+    }
     
     /**
      * Check if field is selected and trigger data loading
@@ -19,6 +102,7 @@ jQuery(document).ready(function($) {
         if (fieldSelected && fieldSelected !== '') {
             
             showCSVLoadingIndicator(true);
+            isDownloadingCSV = true;
             
             // Call API with proper callbacks
             window.getDataFrom_vFromRecordType(
@@ -28,11 +112,13 @@ jQuery(document).ready(function($) {
                 function(data) {
                     // Success callback
                     processCsvData(data);
+                    isDownloadingCSV = false;
                 },
                 function(error) {
                     // Error callback
                     showCSVLoadingIndicator(false);
                     showMessage('Error al obtener datos: ' + error.message, 'error');
+                    isDownloadingCSV = false;
                 }
             );
         } else {
@@ -342,6 +428,40 @@ jQuery(document).ready(function($) {
             
         } catch (error) {
             // Último recurso: mostrar datos en formato texto
+            showDataAsText(data);
+        }
+    }
+    
+    /**
+     * Last resort: show data as formatted text
+     */
+    function showDataAsText(data) {
+        
+        try {
+            const tableElement = document.getElementById('discards-table');
+            if (tableElement) {
+                let textContent = '<div style="font-family: monospace; white-space: pre-wrap; padding: 20px; background: #f9f9f9; border: 1px solid #ddd; max-height: 400px; overflow-y: auto;">';
+                textContent += `📊 DATOS RECUPERADOS (${data.length} registros):\n\n`;
+                
+                data.forEach(function(row, index) {
+                    textContent += `--- Registro ${index + 1} ---\n`;
+                    textContent += `Cultivo: ${row.crop}\n`;
+                    textContent += `Propietario: ${row.owner}\n`;
+                    textContent += `Campo: ${row.field}\n`;
+                    textContent += `Código de Barras: ${row.barcd}\n`;
+                    textContent += `Material ID: ${row.matid}\n`;
+                    textContent += `Plot ID: ${row.plot_id}\n`;
+                    textContent += `Instrucción: ${row.sd_instruction}\n\n`;
+                });
+                
+                textContent += '</div>';
+                
+                // Reemplazar tabla con contenido de texto
+                tableElement.outerHTML = textContent;
+                
+                showMessage(`Datos mostrados como texto: ${data.length} registros`, 'success');
+            }
+        } catch (error) {
             showMessage('Error crítico: No se pudieron mostrar los datos', 'error');
         }
     }
@@ -422,10 +542,11 @@ jQuery(document).ready(function($) {
         processCsvData: processCsvData,
         updateTableWithCsvData: updateTableWithCsvData,
         checkIfFieldSelected: checkIfFieldSelected,
+        initializeDataTable: initializeDataTable,
         showCSVLoadingIndicator: showCSVLoadingIndicator,
         showMessage: showMessage,
         showDataInSimpleTable: showDataInSimpleTable,
-        processRetrievedData: processRetrievedData,
+        processRetrievedData: processRetrievedData, // Nueva función agregada
         getCsvData: function() { return csvData; },
         getDataTable: function() { return window.discardsTable; }
     };
@@ -476,8 +597,7 @@ jQuery(document).ready(function($) {
                     // Intentar parsear como JSON
                     finalData = JSON.parse(csvContent);
                 } catch (parseError) {
-                    showMessage('Error: Formato CSV string no soportado', 'error');
-                    return;
+                    finalData = processCsvString(csvContent);
                 }
             } else if (Array.isArray(csvContent)) {
                 finalData = csvContent;
@@ -519,6 +639,40 @@ jQuery(document).ready(function($) {
             
         } catch (error) {
             showMessage('Error crítico procesando datos: ' + error.message, 'error');
+        }
+    }
+    
+    /**
+     * Process CSV string format
+     */
+    function processCsvString(csvString) {
+        
+        try {
+            const lines = csvString.trim().split('\n');
+            
+            if (lines.length < 2) {
+                return [];
+            }
+            
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                
+                if (values.length === headers.length) {
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index];
+                    });
+                    data.push(row);
+                }
+            }
+            
+            return data;
+            
+        } catch (error) {
+            return [];
         }
     }
     
