@@ -16,6 +16,7 @@ jQuery(document).ready(function ($) {
   initializeForm();
 
   function initializeForm() {
+
     console.log("=== INITIALIZING ORION DISCARD FORM ===");
     
     // Bind event handlers first
@@ -28,6 +29,7 @@ jQuery(document).ready(function ($) {
   }
 
   function loadFieldsData() {
+
     console.log("=== LOADING ORION API DATA ===");
 
     $("#farms").addClass("loading");
@@ -42,6 +44,7 @@ jQuery(document).ready(function ($) {
         console.log("✅ Orion API Response:", response);
         
         if (response.success && response.data && response.data.fields) {
+
           fieldsData = response.data.fields;
           
           debugFieldsData();
@@ -63,7 +66,7 @@ jQuery(document).ready(function ($) {
         showMessage("Error de conexión al cargar los datos", "error");
       },
       complete: function () {
-        
+
         $("#farms").removeClass("loading");
 
       },
@@ -119,6 +122,7 @@ jQuery(document).ready(function ($) {
     const $farmSelect = $("#farms");
     
     if ($farmSelect.length === 0) {
+
       console.error("❌ Farm select element not found!");
 
       return;
@@ -142,6 +146,7 @@ jQuery(document).ready(function ($) {
     
     // ENHANCEMENT: Auto-select if only one farm available
     if (farms.length === 1) {
+      
       console.log("🎯 Auto-selecting single farm:", farms[0].title);
 
       $farmSelect.val(farms[0].id);
@@ -197,25 +202,13 @@ jQuery(document).ready(function ($) {
 
     console.log("✅ Found sections for farm:", sections.length, sections);
 
-    // // FIXED: Clear ALL options and rebuild from scratch
-    // $sectionSelect.empty();
+    // FIXED: Clear ALL options and rebuild from scratch
+    $sectionSelect.empty();
     
-    // // ENHANCED: Add default option with proper selection
-    // $sectionSelect.append(
-    //   $('<option value="" selected>Select a section...</option>')
-    // );
-    
-    if (sections.length === 0) {
-
-      console.warn("⚠️ No sections found for farm ID:", farmId);
-
-      $sectionSelect.prop("disabled", true);
-
-      showMessage("Esta finca no tiene secciones disponibles", "warning");
-
-      return;
-
-    }
+    // ENHANCED: Add default option with proper selection    
+    $sectionSelect.append(
+      $("<option></option>").attr("value", "").text("Seleccione una sección...")
+    );
 
     // Add section options
     sections.forEach(function (section) {
@@ -225,6 +218,17 @@ jQuery(document).ready(function ($) {
       );
 
     });
+
+    // Auto-select first section if available
+    if (sections.length > 0) {
+      $sectionSelect.val(sections[0].id);
+      console.log("🎯 Auto-selecting first section:", sections[0].title);
+      
+      // Trigger change event to populate fields
+      setTimeout(() => {
+        $sectionSelect.trigger('change');
+      }, 100);
+    }
 
     // Enable the section dropdown
     $sectionSelect.prop("disabled", false);
@@ -238,19 +242,18 @@ jQuery(document).ready(function ($) {
       // CRITICAL: Set value and trigger change, but keep default option available
       $sectionSelect.val(sections[0].id);
       
-      // setTimeout(() => {
-      //   console.log("🚀 Triggering section change event for auto-selection");
+      setTimeout(() => {
+        console.log("🚀 Triggering section change event for auto-selection");
         
-      //   // Only trigger if the value is still selected (user didn't change it)
-      //   if ($sectionSelect.val() === sections[0].id) {
+        // Only trigger if the value is still selected (user didn't change it)
+        if ($sectionSelect.val() === sections[0].id) {
 
-      //     $sectionSelect.trigger('change');
+          $sectionSelect.trigger('change');
 
-      //   }
-      // }, 100); // Reduced timeout for better responsiveness
-    } 
-    else 
-    {
+        }
+      }, 100); // Reduced timeout for better responsiveness
+
+    } else {
       // Multiple sections available - keep default selected for user choice
       console.log("📋 Multiple sections available - user must choose");
 
@@ -273,6 +276,7 @@ jQuery(document).ready(function ($) {
 
     // Filter fields for the selected farm and section
     const fields = fieldsData.filter((item) => {
+
       const isField = item.field_type === "fields";
 
       if (!isField) return false;
@@ -384,6 +388,7 @@ jQuery(document).ready(function ($) {
     
     // Farm selection handler with enhanced UX
     $(document).off('change.orion-farms').on('change.orion-farms', '#farms', function () {
+
       const farmId = $(this).val();
 
       const farmName = $(this).find('option:selected').text();
@@ -402,9 +407,11 @@ jQuery(document).ready(function ($) {
 
       // Populate sections if farm selected (not default option)
       if (farmId && farmId !== "") {
+
         console.log("🔄 Loading sections for farm:", farmId);
 
         populateSectionDropdown(farmId);
+
       } else {
         console.log("📝 Default farm option selected - sections remain disabled");
       }
@@ -412,6 +419,7 @@ jQuery(document).ready(function ($) {
 
     // Section selection handler with enhanced validation
     $(document).off('change.orion-sections').on('change.orion-sections', '#sections', function () {
+
       const sectionId = $(this).val();
 
       const sectionName = $(this).find('option:selected').text();
@@ -435,6 +443,7 @@ jQuery(document).ready(function ($) {
         console.log("🔄 Loading fields for farm:", farmId, "section:", sectionId);
 
         populateFieldDropdown(farmId, sectionId);
+
       } else {
         console.log("📝 Default section option selected - fields remain disabled");
       }
@@ -442,6 +451,7 @@ jQuery(document).ready(function ($) {
 
     // Field selection handler with CSV integration
     $(document).off('change.orion-fields').on('change.orion-fields', '#fields', function () {
+
       const fieldId = $(this).val();
 
       const fieldName = $(this).find('option:selected').text();
@@ -455,18 +465,25 @@ jQuery(document).ready(function ($) {
       
       // Only trigger CSV download for valid field selection (not default option)
       if (fieldId && fieldId !== "" && typeof window.downloadAndProcessCSV === 'function') {
+
         console.log("📥 Triggering CSV download for field:", fieldId);
 
         window.downloadAndProcessCSV(fieldId);
+
       } else if (fieldId && fieldId !== "") {
+
         console.warn("⚠️ CSV download function not available");
+
       } else {
+
         console.log("📝 Default field option selected - no CSV download");
+
       }
     });
 
     // Form submission handler
     $(document).off('submit.orion-form').on('submit.orion-form', '#vform-form', function (e) {
+
       e.preventDefault();
 
       console.log("=== FORM SUBMISSION ===");
@@ -476,11 +493,15 @@ jQuery(document).ready(function ($) {
 
     // Scanner input handlers
     $(document).off('focus.orion-scanner').on('focus.orion-scanner', '#scanner-input', function () {
+
       $(this).select();
+
     });
 
     $(document).off('input.orion-scanner change.orion-scanner').on('input.orion-scanner change.orion-scanner', '#scanner-input', function () {
+      
       barCodeInputChange();
+
     });
     
     // Log successful binding
@@ -501,6 +522,7 @@ jQuery(document).ready(function ($) {
 
   // ENHANCED: Form validation with proper default option checking
   function submitDiscardForm() {
+
     console.log("=== SUBMITTING DISCARD FORM ===");
     
     const farmId = $("#farms").val();
@@ -560,6 +582,7 @@ jQuery(document).ready(function ($) {
   }
 
   function checkDuplicateBarcode(barcode, callback) {
+
     console.log("🔍 Checking for duplicate barcode:", barcode);
     
     $.ajax({
@@ -581,24 +604,30 @@ jQuery(document).ready(function ($) {
         callback(false);
       },
     });
+
   }
 
   function showDuplicateModal(barcode) {
+
     console.log("🚨 Showing duplicate barcode modal for:", barcode);
 
     $("#duplicate-code-display").text(barcode);
 
     $("#duplicate-barcode-modal").show();
+
   }
 
   // Modal close handlers
   $(document).on("click", "#modal-close-btn, .orion-modal-close", function () {
+    
     console.log("❌ Closing duplicate barcode modal");
 
     $("#duplicate-barcode-modal").hide();
+
   });
 
   function proceedWithSubmission() {
+
     console.log("🚀 Proceeding with form submission");
     
     const formData = {
@@ -643,12 +672,15 @@ jQuery(document).ready(function ($) {
         showMessage("Error de conexión al enviar el formulario", "error");
       },
       complete: function () {
+
         $("#btn-submit").prop("disabled", false).text("Submit");
+
       },
     });
   }
 
   function resetForm() {
+
     console.log("🔄 Resetting Orion Discard form");
     
     // Reset form fields
@@ -676,12 +708,14 @@ jQuery(document).ready(function ($) {
   }
 
   function barCodeInputChange() {
+
     const barCodeValue = $("#scanner-input").val();
 
     console.log("📱 Barcode input changed:", barCodeValue);
     
     // Trigger CSV download if barcode is valid and function available
     if (barCodeValue && typeof window.downloadAndProcessCSV === 'function') {
+
       console.log("📥 Triggering CSV download for barcode:", barCodeValue);
 
       window.downloadAndProcessCSV(barCodeValue);
@@ -690,6 +724,7 @@ jQuery(document).ready(function ($) {
 
   // DataTable initialization and management functions remain the same...
   function initializeDataTable() {
+
     console.log("📊 Initializing Orion Discard DataTable...");
     
     if (!$.fn.DataTable) {

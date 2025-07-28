@@ -7,15 +7,22 @@ jQuery(document).ready(function($) {
     
     // Variables globales
     let csvData = [];
+
     let isDownloadingCSV = false;
+
+    var site = orionDiscard.site || 'PRSA'; // Default to PRSA if not set
+
+    var year = orionDiscard.year || new Date().getFullYear(); // Default to current year if not set
     
     /**
      * Initialize CSV handler when all dropdowns are populated
      */
     function initializeCsvHandler() {
         // Monitor when all three dropdowns have selections
-        $('#farm-select, #section-select, #field-select').on('change', function() {
+        $('#farms, #sections, #fields').on('change', function() {
+
             checkIfAllSelectionsComplete();
+
         });
     }
     
@@ -23,12 +30,13 @@ jQuery(document).ready(function($) {
      * Check if all three dropdowns have valid selections
      */
     function checkIfAllSelectionsComplete() {
-        const farmSelected = $('#farm-select').val();
 
-        const sectionSelected = $('#section-select').val();
+        const farmSelected = $('#farms').val();
 
-        const fieldSelected = $('#field-select').val();
-        
+        const sectionSelected = $('#sections').val();
+
+        const fieldSelected = $('#fields').val();
+
         console.log('Checking selections:', {
             farm: farmSelected,
             section: sectionSelected,
@@ -37,7 +45,9 @@ jQuery(document).ready(function($) {
         
         // If all three have selections, trigger CSV download
         if (farmSelected && sectionSelected && fieldSelected) {
+
             console.log('All selections complete, downloading CSV...');
+
             downloadAndProcessCSV(farmSelected, sectionSelected, fieldSelected);
         }
     }
@@ -45,33 +55,38 @@ jQuery(document).ready(function($) {
     /**
      * Download CSV file via AJAX and process it
      */
-    function downloadAndProcessCSV(farmId, sectionId, fieldId) {
+    function downloadAndProcessDataFromCSV(recordType, site,year) {
         // Prevent multiple simultaneous downloads
         if (isDownloadingCSV) {
+
             console.log('CSV download already in progress...');
+
             return;
         }
         
-        isDownloadingCSV = true;
-
-      
+        isDownloadingCSV = true;      
         
         // Show loading indicator
         showCSVLoadingIndicator(true);
+
+        queryParams = {
+            action: 'get_data_from_vForm_recordType',
+            nonce: orionDiscard.nonce,
+            vform_record_type: recordType,
+            vdata_site: site,
+            vdata_year: year,
+            site: orionDiscard.site
+        };
         
+        console.log('Query parameters for CSV download:', queryParams);
         // AJAX request to get CSV data
         $.ajax({
             url: orionDiscard.ajaxUrl,
-            type: 'POST',
-            data: {
-                action: 'get_csv_data',
-                nonce: orionDiscard.nonce,
-                farm_id: farmId,
-                section_id: sectionId,
-                field_id: fieldId,
-                site: orionDiscard.site
-            },
+            type: 'GET',
+            data: queryParams,
+            dataType: 'json',
             success: function(response) {
+                
                 console.log('CSV AJAX Response:', response);
                 
                 if (response.success && response.data) {
@@ -86,6 +101,7 @@ jQuery(document).ready(function($) {
                     console.log('CSV processed successfully, rows:', csvData.length);
                 } else {
                     console.error('Error in CSV response:', response.message || 'Unknown error');
+
                     showMessage('Error al descargar datos CSV: ' + (response.message || 'Error desconocido'), 'error');
                 }
             },
@@ -99,6 +115,7 @@ jQuery(document).ready(function($) {
             },
             complete: function() {
                 isDownloadingCSV = false;
+
                 showCSVLoadingIndicator(false);
             }
         });
@@ -108,6 +125,7 @@ jQuery(document).ready(function($) {
      * Process CSV content and convert to JavaScript array
      */
     function processCsvData(csvContent) {
+
         console.log('Processing CSV content...');
         
         // Clear previous data
@@ -117,7 +135,9 @@ jQuery(document).ready(function($) {
         const lines = csvContent.split('\n');
         
         if (lines.length < 2) {
+
             console.log('CSV has insufficient data');
+
             return;
         }
         
@@ -128,6 +148,7 @@ jQuery(document).ready(function($) {
         
         // Process data lines
         for (let i = 1; i < lines.length; i++) {
+
             const line = lines[i].trim();
             
             if (line === '') continue; // Skip empty lines
@@ -135,11 +156,14 @@ jQuery(document).ready(function($) {
             const values = parseCSVLine(line);
             
             if (values.length === headers.length) {
+
                 const rowObject = {};
                 
                 // Map values to headers
                 headers.forEach((header, index) => {
+
                     rowObject[header.toLowerCase().replace(/\s+/g, '_')] = values[index];
+
                 });
                 
                 csvData.push(rowObject);
@@ -153,6 +177,7 @@ jQuery(document).ready(function($) {
      * Parse a single CSV line handling quoted values
      */
     function parseCSVLine(line) {
+
         const result = [];
 
         let current = '';
@@ -160,6 +185,7 @@ jQuery(document).ready(function($) {
         let inQuotes = false;
         
         for (let i = 0; i < line.length; i++) {
+
             const char = line[i];
             
             if (char === '"') {
@@ -187,9 +213,13 @@ jQuery(document).ready(function($) {
      * Update DataTable with CSV data
      */
     function updateTableWithCsvData() {
+
         if (!window.discardsTable) {
+
             console.log('DataTable not initialized yet, initializing...');
+
             initializeDataTable();
+
             return;
         }
         
@@ -263,8 +293,10 @@ jQuery(document).ready(function($) {
         
         if (type === 'success') {
             $message.addClass('notice-success');
+
         } else if (type === 'error') {
             $message.addClass('notice-error');
+
         } else {
             $message.addClass('notice-warning');
         }
