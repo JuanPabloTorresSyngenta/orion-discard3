@@ -110,6 +110,7 @@ jQuery(document).ready(function($) {
             });
             
             showCSVLoadingIndicator(false);
+
             updateTableWithCsvData();
             
         } catch (error) {
@@ -130,6 +131,7 @@ jQuery(document).ready(function($) {
         
         // STEP 1: Verificar elemento tabla existe
         const tableElement = document.getElementById('discards-table');
+
         if (!tableElement) {
             showMessage('Error crítico: Tabla no encontrada en la página', 'error');
             return;
@@ -137,6 +139,7 @@ jQuery(document).ready(function($) {
         
         // STEP 2: Verificar estructura de tabla
         const thead = tableElement.querySelector('thead');
+
         const tbody = tableElement.querySelector('tbody');
         
         if (!thead || !tbody) {
@@ -173,7 +176,9 @@ jQuery(document).ready(function($) {
             
             // Destruir cualquier DataTable existente
             if (window.discardsTable && typeof window.discardsTable.destroy === 'function') {
+
                 window.discardsTable.destroy();
+
                 window.discardsTable = null;
             }
             
@@ -395,15 +400,19 @@ jQuery(document).ready(function($) {
         
         // Monitor field dropdown changes
         $(document).on('change', '#fields', function() {
+
             const selectedField = $(this).val();
             
             if (selectedField && selectedField !== '') {
+                
                 checkIfFieldSelected();
             } else {
                 // Clear and destroy table if no field selected
                 
                 if ($.fn.DataTable.isDataTable('#discards-table')) {
+
                     $('#discards-table').DataTable().destroy();
+
                     window.discardsTable = null;
                 }
                 
@@ -475,8 +484,10 @@ jQuery(document).ready(function($) {
                 try {
                     // Intentar parsear como JSON
                     finalData = JSON.parse(csvContent);
+
                 } catch (parseError) {
                     showMessage('Error: Formato CSV string no soportado', 'error');
+                    
                     return;
                 }
             } else if (Array.isArray(csvContent)) {
@@ -524,6 +535,7 @@ jQuery(document).ready(function($) {
     
     // Make key functions available globally
     window.showCSVLoadingIndicator = showCSVLoadingIndicator;
+
     window.showMessage = showMessage;
     
 });

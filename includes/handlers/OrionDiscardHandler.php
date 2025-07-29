@@ -30,27 +30,20 @@ class OrionDiscardHandler
         // Enqueue scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
-
-        // Register AJAX handlers - ONLY DECLARED ONCE
-        add_action('wp_ajax_submit_discard', array($this, 'handle_submit_discard'));
-        add_action('wp_ajax_nopriv_submit_discard', array($this, 'handle_submit_discard'));
-
-        add_action('wp_ajax_get_discards', array($this, 'handle_get_discards'));
-        add_action('wp_ajax_nopriv_get_discards', array($this, 'handle_get_discards'));
-
-        add_action('wp_ajax_check_duplicate_barcd', array($this, 'handle_check_duplicate_barcd'));
-        add_action('wp_ajax_nopriv_check_duplicate_barcd', array($this, 'handle_check_duplicate_barcd'));
-
-        // add_action('wp_ajax_get_csv_data', array($this, 'handle_get_csv_data'));
-        // add_action('wp_ajax_nopriv_get_csv_data', array($this, 'handle_get_csv_data'));
+       
 
         add_action('wp_ajax_get_data_from_vForm_recordType', array($this, 'handle_get_data_from_vForm_recordType'));
         add_action('wp_ajax_nopriv_get_data_from_vForm_recordType', array($this, 'handle_get_data_from_vForm_recordType'));
+
+        add_action('wp_ajax_updated_MaterialDiscard', array($this, 'handle_updated_MaterialDiscard'));
+        add_action('wp_ajax_nopriv_updated_MaterialDiscard', array($this, 'handle_updated_MaterialDiscard'));
     }
 
     public function activate()
     {
-        $this->create_database_tables();
+        // Activation tasks if needed
+        // For example, creating custom database tables or options
+        // This is a good place to set up initial configurations
     }
 
     public function deactivate()
@@ -74,7 +67,7 @@ class OrionDiscardHandler
             <h1 class="wp-heading-inline"><?php _e('Formulario de Descarte de Material de Soya', 'orion-discard'); ?></h1>
 
             <!-- Shortcode for the control dropdowns -->
-            <?= do_shortcode('[vform id=353876]'); ?>
+            <?= do_shortcode('[vform id=' . esc_attr($atts['id']) . ']'); ?>
 
             <hr class="wp-header-end">
 
@@ -143,7 +136,9 @@ class OrionDiscardHandler
     {
         // Only load on pages with the shortcode
         global $post;
+
         if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'orionDiscardForm')) {
+
             return;
         }
 
@@ -202,7 +197,9 @@ class OrionDiscardHandler
     public function enqueue_admin_assets()
     {
         $user_id = get_current_user_id();
+
         $site = get_user_meta($user_id, 'site', true);
+
         $year = get_user_meta($user_id, 'year', true);
 
         // DataTables
@@ -226,230 +223,6 @@ class OrionDiscardHandler
     }
 
     /**
-     * Create database tables on activation
-     */
-    private function create_database_tables()
-    {
-        global $wpdb;
-
-        $table_name = $wpdb->prefix . 'orion_discards';
-        $charset_collate = $wpdb->get_charset_collate();
-
-        $sql = "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            farm_id varchar(20) NOT NULL,
-            farm_name varchar(255) NOT NULL,
-            section_id varchar(20) NOT NULL,
-            section_name varchar(255) NOT NULL,
-            field_id varchar(20) NOT NULL,
-            field_name varchar(255) NOT NULL,
-            scanned_code varchar(255) NOT NULL,
-            crop varchar(255) DEFAULT '',
-            owner varchar(255) DEFAULT '',
-            submission_id varchar(255) DEFAULT '',
-            field varchar(255) DEFAULT '',
-            extno varchar(255) DEFAULT '',
-            range_val varchar(255) DEFAULT '',
-            row_val varchar(255) DEFAULT '',
-            barcd varchar(255) NOT NULL,
-            plot_id varchar(255) DEFAULT '',
-            subplot_id varchar(255) DEFAULT '',
-            matid varchar(255) DEFAULT '',
-            abbrc varchar(255) DEFAULT '',
-            sd_instruction text DEFAULT '',
-            vform_record_type varchar(255) DEFAULT '',
-            vdata_site varchar(255) DEFAULT '',
-            vdata_year varchar(20) DEFAULT '',
-            is_discarded tinyint(1) DEFAULT 0,
-            user_id bigint(20) unsigned NOT NULL,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            UNIQUE KEY unique_barcd (barcd)
-        ) $charset_collate;";
-
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
-    }
-
-    /**
-     * Handle submit discard AJAX request
-     */
-    public function handle_submit_discard()
-    {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'orion_discard_nonce')) {
-            wp_send_json_error('Nonce verification failed');
-            return;
-        }
-
-        // Get current user
-        $user_id = get_current_user_id();
-        if (!$user_id) {
-            wp_send_json_error('User not authenticated');
-            return;
-        }
-
-        // Sanitize input data
-        $farm_id = sanitize_text_field($_POST['farm_id'] ?? '');
-        $farm_name = sanitize_text_field($_POST['farm_name'] ?? '');
-        $section_id = sanitize_text_field($_POST['section_id'] ?? '');
-        $section_name = sanitize_text_field($_POST['section_name'] ?? '');
-        $field_id = sanitize_text_field($_POST['field_id'] ?? '');
-        $field_name = sanitize_text_field($_POST['field_name'] ?? '');
-        $scanned_code = sanitize_text_field($_POST['scanned_code'] ?? '');
-
-        // Validate required fields
-        if (empty($farm_id) || empty($section_id) || empty($field_id) || empty($scanned_code)) {
-            wp_send_json_error('Missing required fields');
-            return;
-        }
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'orion_discards';
-
-        // Check for duplicate barcode
-        $existing = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM $table_name WHERE barcd = %s",
-            $scanned_code
-        ));
-
-        if ($existing) {
-            wp_send_json_error('Barcode already discarded');
-            return;
-        }
-
-        // Insert new discard record
-        $result = $wpdb->insert(
-            $table_name,
-            array(
-                'farm_id' => $farm_id,
-                'farm_name' => $farm_name,
-                'section_id' => $section_id,
-                'section_name' => $section_name,
-                'field_id' => $field_id,
-                'field_name' => $field_name,
-                'scanned_code' => $scanned_code,
-                'barcd' => $scanned_code,
-                'is_discarded' => 1,
-                'user_id' => $user_id,
-                'created_at' => current_time('mysql')
-            ),
-            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s')
-        );
-
-        if ($result === false) {
-            wp_send_json_error('Database error: ' . $wpdb->last_error);
-            return;
-        }
-
-        wp_send_json_success(array(
-            'message' => 'Discard record created successfully',
-            'id' => $wpdb->insert_id
-        ));
-    }
-
-    /**
-     * Handle get discards AJAX request
-     */
-    public function handle_get_discards()
-    {
-        // Verify nonce
-        if (!isset($_GET['nonce']) || !wp_verify_nonce($_GET['nonce'], 'orion_discard_nonce')) {
-            wp_send_json_error('Nonce verification failed');
-            return;
-        }
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'orion_discards';
-
-        // Get all discard records
-        $discards = $wpdb->get_results(
-            "SELECT * FROM $table_name ORDER BY created_at DESC",
-            ARRAY_A
-        );
-
-        if ($wpdb->last_error) {
-            wp_send_json_error('Database error: ' . $wpdb->last_error);
-            return;
-        }
-
-        wp_send_json_success(array(
-            'data' => $discards,
-            'total' => count($discards)
-        ));
-    }
-
-    /**
-     * Handle check duplicate barcode AJAX request
-     */
-    public function handle_check_duplicate_barcd()
-    {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'orion_discard_nonce')) {
-            wp_send_json_error('Nonce verification failed');
-            return;
-        }
-
-        $barcode = sanitize_text_field($_POST['barcode'] ?? '');
-
-        if (empty($barcode)) {
-            wp_send_json_error('Barcode is required');
-            return;
-        }
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'orion_discards';
-
-        $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE barcd = %s",
-            $barcode
-        ), ARRAY_A);
-
-        wp_send_json_success(array(
-            'exists' => !empty($existing),
-            'data' => $existing
-        ));
-    }
-
-    /**
-     * Handle get CSV data AJAX request
-     */
-    // public function handle_get_csv_data()
-    // {
-    //     // Verify nonce
-    //     if (!isset($_GET['nonce']) || !wp_verify_nonce($_GET['nonce'], 'orion_discard_nonce')) {
-    //         wp_send_json_error('Nonce verification failed');
-    //         return;
-    //     }
-
-    //     $farm_id = sanitize_text_field($_GET['farm_id'] ?? '');
-    //     $section_id = sanitize_text_field($_GET['section_id'] ?? '');
-    //     $field_id = sanitize_text_field($_GET['field_id'] ?? '');
-    //     $site = sanitize_text_field($_GET['site'] ?? 'PRSA');
-
-    //     if (empty($farm_id) || empty($section_id) || empty($field_id)) {
-    //         wp_send_json_error('Missing required parameters');
-    //         return;
-    //     }
-
-    //     // Build CSV URL
-    //     $csv_url = $this->build_csv_url($farm_id, $section_id, $field_id, $site);
-
-    //     // Download CSV content
-    //     $csv_content = $this->download_csv_content($csv_url);
-
-    //     if ($csv_content === false) {
-    //         wp_send_json_error('Failed to download CSV data');
-    //         return;
-    //     }
-
-    //     wp_send_json_success(array(
-    //         'csv_content' => $csv_content,
-    //         'csv_url' => $csv_url
-    //     ));
-    // }
-
-    /**
      * Handle get data from vForm record type AJAX request
      */
     public function handle_get_data_from_vForm_recordType()
@@ -458,11 +231,10 @@ class OrionDiscardHandler
         // ✅ CORRECCIÓN: Buscar '_ajax_nonce' en lugar de 'nonce'
         if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'orion_discard_nonce')) {
 
-            error_log('❌ Nonce verification failed. Received: ' . ($_POST['_ajax_nonce'] ?? 'null'));
-
             wp_send_json_error('Invalid nonce');
 
             return;
+
         }
 
         // ✅ CORRECCIÓN: Cambiar $_GET por $_POST
@@ -474,21 +246,14 @@ class OrionDiscardHandler
 
         // $field_selected = sanitize_text_field($_POST['fieldId'] ?? '');
 
-         $field_selected = 'AB-RA';
-
-        // Log para debugging
-        error_log('📊 CSV Request Parameters: ' . json_encode([
-            'site' => $site,
-            'year' => $year, 
-            'form_type' => $form_type,
-            'field_selected' => $field_selected
-        ]));
+        $field_selected = 'AB-RA';
 
         if (empty($site) || empty($year) || empty($form_type) || empty($field_selected)) {
-            
+
             wp_send_json_error('Missing required parameters');
 
             return;
+
         }
 
         // Query posts
@@ -515,13 +280,12 @@ class OrionDiscardHandler
             )
         ));
 
-        error_log('📊 Found posts: ' . count($posts));
-
         if (empty($posts)) {
 
             wp_send_json_error('No data found');
 
             return;
+
         }
 
         // Process posts
@@ -529,115 +293,83 @@ class OrionDiscardHandler
 
         $csv_headers = array();
 
-        error_log('📊 Found posts: ' . json_encode($posts));
-
         $processed_count = 0;
+
         $filtered_count = 0;
 
-     foreach ($posts as $post) {
-        $processed_count++;
-        
-        // Decodificar contenido JSON
-        $post_content = json_decode($post->post_content, true);
+        foreach ($posts as $post) {
+            $processed_count++;
 
-        error_log('📊 Found post content: ' . json_encode($post_content));
+            // Decodificar contenido JSON
+            $post_content = json_decode($post->post_content, true);
 
-        if (!is_array($post_content)) {
-            error_log("⚠️ Post ID {$post->ID}: Invalid JSON content");
-            continue;
-        }
-
-        // Log del contenido para debugging (solo primeros 3 posts)
-        if ($processed_count <= 3) {
-            error_log("📋 Post ID {$post->ID} content: " . json_encode($post_content));
-        }
-        
-        // Verificar si el campo coincide
-        if (isset($post_content['field']) && $post_content['field'] == $field_selected) {
-            $filtered_count++;
-            $csv_data[] = $post_content;
-            $csv_headers = array_unique(array_merge($csv_headers, array_keys($post_content)));
-            
-            // Log de coincidencia encontrada
-            if ($filtered_count <= 5) {
-                error_log("✅ Match found - Post ID {$post->ID}: field='{$post_content['field']}', barcd='{$post_content['barcd']}'");
+            if (!is_array($post_content)) {
+                continue;
             }
-        } else {
-            // Log de por qué no coincide (solo primeros 3)
-            if ($processed_count <= 3) {
-                $actual_field = $post_content['field'] ?? 'NOT_SET';
-                error_log("❌ Post ID {$post->ID}: field mismatch - expected: '{$field_selected}', actual: '{$actual_field}'");
+
+            // Verificar si el campo coincide
+            if (isset($post_content['field']) && $post_content['field'] == $field_selected) {
+                $filtered_count++;
+
+                $csv_data[] = $post_content;
+
+                $csv_headers = array_unique(array_merge($csv_headers, array_keys($post_content)));
+
             }
         }
-    }
 
-        error_log("📊 Processing summary: {$processed_count} posts processed, {$filtered_count} matches found for field '{$field_selected}'");
+        if (empty($csv_data)) {
 
-    if (empty($csv_data)) {
+            wp_send_json_error('No data found for field');
 
-        error_log("❌ No data found for field: {$field_selected}");
+            return;
 
-        wp_send_json_error('No data found for field');
+        }
 
-        return;
-    }
-
-    // ✅ Generar CSV con headers ordenados
-    sort($csv_headers); // Ordenar headers alfabéticamente
-    // $csv_content = $this->array_to_csv($csv_data, $csv_headers);
-
-    error_log("✅ CSV generated successfully: {$filtered_count} records, " . count($csv_headers) . " columns");
-
-    wp_send_json_success(array(
-        'csv_content' => $csv_data,
-        'total_records' => $filtered_count,
-        'field_id' => $field_selected,
-        'headers' => $csv_headers,
-        'processed_posts' => $processed_count
-    ));
-    }
-
-    /**
-     * Build CSV URL
-     */
-    private function build_csv_url($farm_id, $section_id, $field_id, $site)
-    {
-        $base_url = 'https://example.com/api/csv';
-        $params = array(
-            'farm_id' => $farm_id,
-            'section_id' => $section_id,
-            'field_id' => $field_id,
-            'site' => $site
-        );
-
-        return $base_url . '?' . http_build_query($params);
-    }
-
-    /**
-     * Download CSV content
-     */
-    private function download_csv_content($url)
-    {
-        $response = wp_remote_get($url, array(
-            'timeout' => 30,
-            'headers' => array(
-                'Accept' => 'text/csv'
-            )
+        wp_send_json_success(array(
+            'csv_content' => $csv_data,
+            'total_records' => $filtered_count,
+            'field_id' => $field_selected,
+            'headers' => $csv_headers,
+            'processed_posts' => $processed_count
         ));
 
-        if (is_wp_error($response)) {
-            return false;
-        }
-
-        $status_code = wp_remote_retrieve_response_code($response);
-        if ($status_code !== 200) {
-            return false;
-        }
-
-        return wp_remote_retrieve_body($response);
     }
 
+    function handle_updated_MaterialDiscard()
+    {
+        $ID = $_POST['ID'] ?? null;
+
+        if (!$ID) {
+            wp_send_json_error('Missing ID parameter');
+
+            wp_die();
+        }
 
 
-  
+        $post = get_post($ID);
+        if (!$post) {
+            wp_send_json_error('Post not found');
+
+            wp_die();
+        }
+
+        $post_content = json_decode($post->post_content);
+
+        $post_content['isDiscarded'] = true;
+
+        $post->post_content = json_encode($post_content);
+
+        $updated = wp_update_post($post);
+
+        $updated 
+            ? wp_send_json_success('Material discard updated successfully')
+            : wp_send_json_error('Failed to update material discard');
+
+
+
+        // This function can be used to handle updates to the material discard process
+        // For example, updating records in the database or performing cleanup tasks
+        // Currently, it does nothing but can be extended as needed
+    }   
 }

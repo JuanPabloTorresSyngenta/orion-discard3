@@ -142,8 +142,104 @@ jQuery(document).ready(function ($) {
         });
     }
 
+    /**
+     * Procesa el envío del formulario de descarte con validaciones mejoradas
+     */
+    function proceedWithSubmission() {
+        const ajaxParam = {
+            action: "submit_discard",
+            nonce: orionDiscard.nonce,
+            farm_id: $("#farms").val(),    
+            section_id: $("#sections").val(),   
+            field_id: $("#fields").val(),   
+            scanned_code: $("#scanner-input").val(),
+        };
+
+        // Disable submit button
+        $("#btn-submit").prop("disabled", true).text("Procesando...");
+
+        $.ajax({
+            url: orionDiscard.ajaxUrl,
+            method: "POST",
+            data: ajaxParam,
+            dataType: 'json',
+            success: function (response) {
+                
+                // Verificar estructura de respuesta válida
+                if (typeof response === 'object' && response !== null) {
+                    
+                    if (response.success === true) {
+                        // Éxito: Registro creado exitosamente
+                        showMessage("Descarte registrado exitosamente", "success");
+                        resetForm();
+                        
+                        // Refrescar tabla si existe
+                        if (typeof refreshDataTable === 'function') {
+                            refreshDataTable();
+                        }
+                        
+                        // Limpiar campo de scanner para próximo escaneo
+                        $("#scanner-input").val('').focus();
+                        
+                    } else {
+                        // Error del servidor con mensaje específico
+                        const errorMessage = response.data && response.data.message 
+                            ? response.data.message 
+                            : response.message || "Error desconocido del servidor";
+                        
+                        showMessage("Error al registrar el descarte: " + errorMessage, "error");
+                        
+                        // Si es error de duplicado, enfocar el campo scanner
+                        if (errorMessage.toLowerCase().includes('duplicado') || 
+                            errorMessage.toLowerCase().includes('existe')) {
+                            $("#scanner-input").focus().select();
+                        }
+                    }
+                    
+                } else {
+                    // Respuesta inválida del servidor
+                    showMessage("Respuesta inválida del servidor", "error");
+                }
+            },
+            error: function (xhr, status, error) {
+                
+                let errorMessage = "Error de conexión al enviar el formulario";
+                
+                // Analizar el tipo de error para dar feedback específico
+                if (xhr.status === 0) {
+                    errorMessage = "Sin conexión a internet. Verifique su conexión.";
+                } else if (xhr.status === 403) {
+                    errorMessage = "No tiene permisos para realizar esta acción.";
+                } else if (xhr.status === 404) {
+                    errorMessage = "Endpoint no encontrado. Contacte al administrador.";
+                } else if (xhr.status === 500) {
+                    errorMessage = "Error interno del servidor. Intente nuevamente.";
+                } else if (xhr.status >= 400 && xhr.status < 500) {
+                    errorMessage = "Error en la solicitud. Verifique los datos ingresados.";
+                } else if (xhr.status >= 500) {
+                    errorMessage = "Error del servidor. Contacte al administrador.";
+                }
+                
+                showMessage(errorMessage, "error");
+                
+                // Log detallado para debugging
+                console.error('Ajax submission error:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+            },
+            complete: function () {
+                // Siempre restaurar el botón sin importar el resultado
+                $("#btn-submit").prop("disabled", false).text("Submit");
+            }
+        });
+    }
+
     // Exponer funciones globalmente
     window.loadOrionFieldsData = loadOrionFieldsData;
     window.checkDuplicateBarcode = checkDuplicateBarcode;
     window.getDataFrom_vFromRecordType = getDataFrom_vFromRecordType;
+    window.proceedWithSubmission = proceedWithSubmission;
 });

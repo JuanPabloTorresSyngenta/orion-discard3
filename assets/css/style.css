@@ -1,52 +1,95 @@
 /* Orion Discard Plugin Styles */
 
-/* Frontend styles (legacy) */
-.orion-discard-form {
-    max-width: 800px;
-    margin: 20px 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+/* Table Row Highlight Animation */
+.row-highlight {
+    background-color: #d4edda !important;
+    animation: row-glow 2s ease-out;
+    transition: background-color 0.3s ease;
 }
 
-.orion-discard-form h3 {
-    color: #333;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #0073aa;
-    padding-bottom: 10px;
+@keyframes row-glow {
+    0% { 
+        background-color: #28a745 !important; 
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.6);
+    }
+    50% { 
+        background-color: #d4edda !important; 
+        box-shadow: 0 0 5px rgba(40, 167, 69, 0.3);
+    }
+    100% { 
+        background-color: #d4edda !important; 
+        box-shadow: none;
+    }
 }
 
-.orion-discard-form .form-group {
-    margin-bottom: 15px;
+/* Status Column Styling */
+#discards-table .text-center {
+    font-size: 16px;
+    font-weight: bold;
 }
 
-.orion-discard-form label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: #555;
+/* Enhanced status indicators */
+#discards-table tbody tr td:first-child {
+    text-align: center;
+    vertical-align: middle;
 }
 
-.orion-discard-form select,
-.orion-discard-form input[type="text"] {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-    background-color: #fff;
-    transition: border-color 0.3s ease;
+/* Barcode Validation Icon Styles - DEPRECATED (keeping for backward compatibility) */
+.barcode-validation-icon {
+    display: inline-block;
+    margin-left: 8px;
+    vertical-align: middle;
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 1;
+    transition: all 0.3s ease;
 }
 
-.orion-discard-form select:focus,
-.orion-discard-form input[type="text"]:focus {
-    outline: none;
-    border-color: #0073aa;
-    box-shadow: 0 0 5px rgba(0, 115, 170, 0.3);
+.barcode-validation-icon.validation-check {
+    color: #28a745;
+    animation: checkmark-bounce 0.3s ease-out;
 }
 
-.orion-discard-form select:disabled {
-    background-color: #f5f5f5;
-    color: #999;
-    cursor: not-allowed;
+.barcode-validation-icon.validation-x {
+    color: #dc3545;
+    animation: x-shake 0.3s ease-out;
+}
+
+.barcode-validation-icon.validation-clear {
+    color: transparent;
+}
+
+/* Animation for check mark */
+@keyframes checkmark-bounce {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Animation for X mark */
+@keyframes x-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Scanner input container enhancement */
+#scanner-input {
+    position: relative;
+}
+
+/* Ensure icon container doesn't break layout */
+.input-group .barcode-validation-icon,
+.form-group .barcode-validation-icon,
+.field-container .barcode-validation-icon {
+    position: relative;
+    top: -1px;
 }
 
 /* Simple Data Table Fallback Styles */
@@ -220,32 +263,6 @@
     }
 }
 
-.orion-discard-form button {
-    background-color: #0073aa;
-    color: white;
-    padding: 12px 25px;
-    border: none;
-    border-radius: 4px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.orion-discard-form button:hover {
-    background-color: #005a87;
-}
-
-.orion-discard-form button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
-/* Scanner input highlight */
-.orion-discard-form #scanner-input {
-    border-color: #4CAF50;
-    background-color: #f9fff9;
-}
-
 /* DataTables container */
 #discards-table-container {
     margin-top: 30px;
@@ -385,15 +402,12 @@
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .orion-discard-form,
     .orion-discard-admin-form {
         max-width: 100%;
         padding: 15px;
         margin: 15px 0;
     }
     
-    .orion-discard-form select,
-    .orion-discard-form input[type="text"],
     .orion-discard-admin-form .regular-text {
         font-size: 16px; /* Prevent zoom on iOS */
         width: 100%;
@@ -487,11 +501,11 @@
 }
 
 /* DataTables enhancements for new columns */
-.orion-discard-form #discards-table .text-center {
+#discards-table .text-center {
     text-align: center;
 }
 
-.orion-discard-form #discards-table .font-weight-bold {
+#discards-table .font-weight-bold {
     font-weight: bold;
 }
 
