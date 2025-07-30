@@ -64,22 +64,14 @@ class OrionDiscardHandler
         // Start output buffering
         ob_start();
 ?>
-        <div id="orion-discard-form-<?php echo esc_attr($atts['id']); ?>" class="wrap orion-discard-admin-form">
-            <h1 class="wp-heading-inline"><?php _e('Formulario de Descarte de Material de Soya', 'orion-discard'); ?></h1>
-
+        <div id="orion-discard-form-<?php echo esc_attr($atts['id']); ?>" >
+          
             <!-- Shortcode for the control dropdowns -->
             <?= do_shortcode('[vform id=' . esc_attr($atts['id']) . ']'); ?>
 
             <hr class="wp-header-end">
 
-            <h2><?php _e('Registros de Descarte', 'orion-discard'); ?></h2>
-
-            <div class="tablenav top">
-                <div class="alignleft actions">
-                    <p class="description"><?php _e('Histórico de descartes registrados en el sistema.', 'orion-discard'); ?></p>
-                </div>
-            </div>
-
+         
             <table id="discards-table" class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
@@ -323,6 +315,17 @@ class OrionDiscardHandler
             if (isset($post_content['field']) && $post_content['field'] == $field_selected) {
                 $filtered_count++;
 
+                // ✅ CORRECCIÓN: Incluir post_id en los datos para identificar correctamente las filas
+                $post_content['post_id'] = $post->ID;
+                $post_content['id'] = $post->ID; // Alias para compatibilidad con table manager
+                
+                // ✅ CORRECCIÓN: Establecer estado inicial basándose en isDiscarded
+                if (!empty($post_content['isDiscarded'])) {
+                    $post_content['status'] = '✅'; // Ya descartado
+                } else {
+                    $post_content['status'] = '❌'; // Pendiente de descarte
+                }
+                
                 $csv_data[] = $post_content;
 
                 $csv_headers = array_unique(array_merge($csv_headers, array_keys($post_content)));
@@ -457,108 +460,117 @@ class OrionDiscardHandler
     // }
 
     public function handle_get_data_from_vForm_recordType_To_ValidateBarCode() {
-    // Seguridad
-    if (
-        empty($_POST['_ajax_nonce']) ||
-        !wp_verify_nonce($_POST['_ajax_nonce'], 'orion_discard_nonce')
-    ) {
-        wp_send_json_error('Invalid nonce');
-    }
- 
-    // Sanitización
-    $site = sanitize_text_field($_POST['vdata_site'] ?? '');
-    $year = sanitize_text_field($_POST['vdata_year'] ?? '');
-    $form_type = sanitize_text_field($_POST['vform_record_type'] ?? '');
-    $barcode_read = sanitize_text_field($_POST['barcode_Read'] ?? '');
-    $field_selected = 'AB-RA';
- 
-    // Validación mínima antes de continuar
-    if (!$site || !$year || !$form_type || !$barcode_read) {
-        wp_send_json_error('Missing required parameters');
-    }
- 
-    // Buscar posts por meta (limitamos los campos para rendimiento)
-    $query = new WP_Query([
-        'post_type' => 'vdata',
-        'posts_per_page' => -1,        
-        'fields' => 'ids',
-        'no_found_rows' => true,
-        'meta_query' => [
-            'relation' => 'AND',
-            [
-                'key' => 'vdata-site',
-                'value' => $site,
-            ],
-            [
-                'key' => 'vdata-year',
-                'value' => $year,
-            ],
-            [
-                'key' => 'vform-record-type',
-                'value' => $form_type,
-            ],
-        ],
-    ]);
- 
-    if (!$query->have_posts()) {
-        wp_send_json_error('No data found for the specified criteria');
-    }
- 
-    foreach ($query->posts as $post_id) {
-        $content = get_post_field('post_content', $post_id);
- 
-        if (!$content) {
-            continue;
+        // Seguridad
+        if (
+            empty($_POST['_ajax_nonce']) ||
+            !wp_verify_nonce($_POST['_ajax_nonce'], 'orion_discard_nonce')
+        ) {
+            wp_send_json_error('Invalid nonce');
         }
- 
-        $data = json_decode($content, true);
-        if (!is_array($data) || empty($data['barcd'])) {
-            continue;
+     
+        // Sanitización
+        $site = sanitize_text_field($_POST['vdata_site'] ?? '');
+        $year = sanitize_text_field($_POST['vdata_year'] ?? '');
+        $form_type = sanitize_text_field($_POST['vform_record_type'] ?? '');
+        $barcode_read = sanitize_text_field($_POST['barcode_Read'] ?? '');
+        $field_selected = 'AB-RA';
+     
+        // Validación mínima antes de continuar
+        if (!$site || !$year || !$form_type || !$barcode_read) {
+            wp_send_json_error('Missing required parameters');
         }
- 
-        // Comparación de código de barras
-        if (trim($data['barcd']) === $barcode_read) {
+     
+        // Buscar posts por meta (limitamos los campos para rendimiento)
+        $query = new WP_Query([
+            'post_type' => 'vdata',
+            'posts_per_page' => -1,        
+            'fields' => 'ids',
+            'no_found_rows' => true,
+            'meta_query' => [
+                'relation' => 'AND',
+                [
+                    'key' => 'vdata-site',
+                    'value' => $site,
+                ],
+                [
+                    'key' => 'vdata-year',
+                    'value' => $year,
+                ],
+                [
+                    'key' => 'vform-record-type',
+                    'value' => $form_type,
+                ],
+            ],
+        ]);
+     
+        if (!$query->have_posts()) {
+            wp_send_json_error('No data found for the specified criteria');
+        }
+     
+        foreach ($query->posts as $post_id) {
+            $content = get_post_field('post_content', $post_id);
+     
+            if (!$content) {
+                continue;
+            }
+     
+            $data = json_decode($content, true);
+            if (!is_array($data) || empty($data['barcd'])) {
+                continue;
+            }
+     
+            // Comparación de código de barras
+            if (trim($data['barcd']) === $barcode_read) {
 
-            if (!empty($data['isDiscarded'])) {
-                wp_send_json_error([
-                    'message' => 'Barcode already discarded',
+                // ✅ CORRECCIÓN: Verificar usando isDiscarded como flag
+                if (!empty($data['isDiscarded']) && $data['isDiscarded'] === true) {
+                    wp_send_json_error([
+                        'message' => 'Barcode already discarded',
+                        'barcode' => $barcode_read,
+                        'post_id' => $post_id,
+                        'data' => $data,
+                    ]);
+                }
+     
+                // Actualizar el estado de descarte
+                $data['isDiscarded'] = true;
+                $data['discarded_at'] = current_time('mysql');
+                $data['discarded_by'] = get_current_user_id();
+     
+                $update = wp_update_post([
+                    'ID' => $post_id,
+                    'post_content' => wp_json_encode($data),
+                ], true);
+     
+                if (is_wp_error($update)) {
+                    wp_send_json_error([
+                        'message' => 'Failed to update discard status',
+                        'error' => $update->get_error_message(),
+                        'post_id' => $post_id,
+                    ]);
+                }
+     
+                // ✅ CORRECCIÓN: Incluir post_id en la respuesta exitosa para identificar la fila correcta
+                wp_send_json_success([
+                    'message' => 'Barcode successfully marked as discarded',
                     'barcode' => $barcode_read,
+                    'post_id' => $post_id,
                     'data' => $data,
+                    'debug_info' => [
+                        'query_found_posts' => count($query->posts),
+                        'matched_post_id' => $post_id,
+                        'barcode_matched' => $barcode_read
+                    ]
                 ]);
             }
- 
-            // Actualizar el estado de descarte
-            $data['isDiscarded'] = true;
-            $data['discarded_at'] = current_time('mysql');
-            $data['discarded_by'] = get_current_user_id();
- 
-            $update = wp_update_post([
-                'ID' => $post_id,
-                'post_content' => wp_json_encode($data),
-            ], true);
- 
-            if (is_wp_error($update)) {
-                wp_send_json_error([
-                    'message' => 'Failed to update discard status',
-                    'error' => $update->get_error_message(),
-                ]);
-            }
- 
-            wp_send_json_success([
-                'message' => 'Barcode successfully marked as discarded',
-                'barcode' => $barcode_read,
-                'post_id' => $post_id,
-                'data' => $data,
-            ]);
         }
+     
+        // Código no encontrado
+        wp_send_json_error([
+            'message' => 'Barcode not found',
+            'barcode' => $barcode_read,
+        ]);
     }
- 
-    // Código no encontrado
-    wp_send_json_error([
-        'message' => 'Barcode not found',
-        'barcode' => $barcode_read,
-    ]);
-}
 
     function handle_updated_MaterialDiscard()
     {

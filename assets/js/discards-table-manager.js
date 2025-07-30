@@ -59,18 +59,32 @@ jQuery(document).ready(function($) {
                                 return data;
                             }
                         },
-                        { data: 'field', title: 'Field', defaultContent: '' },
-                        { data: 'range_val', title: 'Range', defaultContent: '' },
-                        { data: 'row_val', title: 'Row', defaultContent: '' },
-                        { data: 'plot_id', title: 'Plot ID', defaultContent: '' },
-                        { data: 'subplot_id', title: 'Subplot ID', defaultContent: '' },
-                        { data: 'matid', title: 'MATID', defaultContent: '' },
-                        { data: 'barcd', title: 'Código', defaultContent: '' }
+                        { data: 'field', title: 'Field', defaultContent: '', width: '120px' },
+                        { data: 'range_val', title: 'Range', defaultContent: '', width: '100px' },
+                        { data: 'row_val', title: 'Row', defaultContent: '', width: '80px' },
+                        { data: 'plot_id', title: 'Plot ID', defaultContent: '', width: '100px' },
+                        { data: 'subplot_id', title: 'Subplot ID', defaultContent: '', width: '120px' },
+                        { data: 'matid', title: 'MATID', defaultContent: '', width: '120px' },
+                        { data: 'barcd', title: 'Código', defaultContent: '', width: '150px' }
                     ],
                     pageLength: 25,
-                    responsive: true,
-                    scrollX: true,
-                    autoWidth: false,
+                    responsive: false, // ✅ CORRECCIÓN: Deshabilitar responsive para evitar conflictos
+                    scrollX: false,    // ✅ CORRECCIÓN: Deshabilitar scroll horizontal
+                    autoWidth: true,   // ✅ CORRECCIÓN: Permitir cálculo automático de anchos
+                    fixedHeader: false, // ✅ CORRECCIÓN: Deshabilitar header fijo
+                    ordering: true,     // ✅ CORRECCIÓN: Mantener ordenamiento habilitado
+                    order: [[0, 'asc']], // ✅ CORRECCIÓN: Ordenar por primera columna por defecto
+                    columnDefs: [       // ✅ CORRECCIÓN: Definir comportamiento de columnas
+                        {
+                            targets: 0, // Columna de Estado
+                            orderable: true,
+                            className: 'text-center'
+                        },
+                        {
+                            targets: '_all', // Todas las demás columnas
+                            orderable: true
+                        }
+                    ],
                     language: {
                         emptyTable: "No hay datos disponibles",
                         info: "Mostrando _START_ a _END_ de _TOTAL_ entradas",
@@ -89,9 +103,14 @@ jQuery(document).ready(function($) {
                         }
                     },
                     createdRow: function(row, data) {
-                        if (data.id) {
+                        // ✅ CORRECCIÓN: Usar post_id como identificador principal
+                        if (data.post_id) {
+                            $(row).attr('data-record-id', data.post_id);
+                            $(row).attr('data-post-id', data.post_id);
+                        } else if (data.id) {
                             $(row).attr('data-record-id', data.id);
                         }
+                        
                         if (data.barcd) {
                             $(row).attr('data-barcode', data.barcd);
                         }
@@ -171,7 +190,9 @@ jQuery(document).ready(function($) {
                 // Normalize data to ensure required fields
                 const normalizedData = data.map(function(row, index) {
                     return {
-                        id: row.id || row.record_id || row.post_id || ('row_' + Date.now() + '_' + index),
+                        // ✅ CORRECCIÓN: Preservar post_id como identificador principal
+                        id: row.post_id || row.id || row.record_id || ('row_' + Date.now() + '_' + index),
+                        post_id: row.post_id || row.id || row.record_id, // Mantener post_id explícitamente
                         status: row.status || '❌',
                         field: row.field || '',
                         range_val: row.range_val || row.range || '',
@@ -179,7 +200,9 @@ jQuery(document).ready(function($) {
                         plot_id: row.plot_id || '',
                         subplot_id: row.subplot_id || '',
                         matid: row.matid || '',
-                        barcd: row.barcd || row.barcode || ''
+                        barcd: row.barcd || row.barcode || '',
+                        // Preservar cualquier campo adicional que pueda venir del PHP
+                        isDiscarded: row.isDiscarded || false
                     };
                 });
                 
@@ -293,13 +316,30 @@ jQuery(document).ready(function($) {
                 return false;
             }
             
+            console.log('TableManager: Searching for record ID:', recordId, 'to update status to:', newStatus);
+            
             try {
                 let found = false;
                 const status = newStatus || '✅';
                 
                 this.table.rows().every(function() {
                     const data = this.data();
-                    if (String(data.id) === String(recordId)) {
+                    const dataId = String(data.id || '');
+                    const dataPostId = String(data.post_id || '');
+                    const searchId = String(recordId);
+                    
+                    console.log('TableManager: Row data debug:', {
+                        'data.id': data.id,
+                        'data.post_id': data.post_id,
+                        'dataId': dataId,
+                        'dataPostId': dataPostId,
+                        'searchId': searchId,
+                        'barcode': data.barcd
+                    });
+                    
+                    // ✅ CORRECCIÓN: Buscar tanto por id como por post_id
+                    if (dataId === searchId || dataPostId === searchId) {
+                        console.log('TableManager: Found matching record by ID, updating status');
                         data.status = status;
                         this.data(data);
                         
@@ -312,14 +352,22 @@ jQuery(document).ready(function($) {
                             $row.addClass('row-pending');
                         }
                         
+                        // Add highlight effect
+                        $row.addClass('row-highlight');
+                        setTimeout(function() {
+                            $row.removeClass('row-highlight');
+                        }, 2000);
+                        
                         found = true;
                         return false; // Stop iteration
                     }
                 });
                 
                 if (found) {
-                    this.table.draw(false);
-                    console.log('TableManager: Updated status for record ID:', recordId, 'to', status);
+                    this.table.draw(false); // Redraw without changing pagination
+                    console.log('TableManager: Successfully updated status for record ID:', recordId, 'to', status);
+                } else {
+                    console.warn('TableManager: Record ID not found:', recordId);
                 }
                 
                 return found;
@@ -385,6 +433,40 @@ jQuery(document).ready(function($) {
                 );
             } catch (error) {
                 console.error('TableManager: Error finding by barcode:', error);
+                return [];
+            }
+        },
+        
+        /**
+         * Debug function: Log all post_ids in the table
+         * @returns {Array} Array of post_ids
+         */
+        debugPostIds: function() {
+            if (!this.isInitialized()) {
+                console.log('❌ TableManager: Not initialized');
+                return [];
+            }
+            
+            try {
+                const data = this.table.data().toArray();
+                console.log('🔍 TableManager: Debugging post_ids in table:');
+                
+                const postIds = data.map((row, index) => {
+                    const info = {
+                        index: index,
+                        id: row.id,
+                        post_id: row.post_id,
+                        barcode: row.barcd,
+                        status: row.status
+                    };
+                    console.log(`  Row ${index}:`, info);
+                    return info;
+                });
+                
+                console.table(postIds);
+                return postIds;
+            } catch (error) {
+                console.error('TableManager: Error debugging post_ids:', error);
                 return [];
             }
         },

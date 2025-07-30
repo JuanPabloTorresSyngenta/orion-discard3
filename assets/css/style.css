@@ -509,6 +509,92 @@
     font-weight: bold;
 }
 
+/* ✅ CORRECCIÓN: Ocultar filas de sizing de DataTables */
+#discards-table thead tr[style*="height: 0px"] {
+    display: none !important;
+}
+
+#discards-table .dataTables_sizing {
+    display: none !important;
+}
+
+/* ✅ SOLUCIÓN DEFINITIVA: Eliminar TODAS las flechitas predeterminadas */
+#discards-table th.sorting:before,
+#discards-table th.sorting:after,
+#discards-table th.sorting_asc:before,
+#discards-table th.sorting_asc:after,
+#discards-table th.sorting_desc:before,
+#discards-table th.sorting_desc:after,
+table.dataTable thead th.sorting:before,
+table.dataTable thead th.sorting:after,
+table.dataTable thead th.sorting_asc:before,
+table.dataTable thead th.sorting_asc:after,
+table.dataTable thead th.sorting_desc:before,
+table.dataTable thead th.sorting_desc:after {
+    display: none !important;
+    content: "" !important;
+}
+
+/* Añadir solo UNA flecha personalizada después */
+#discards-table th.sorting::after {
+    content: "⇅" !important;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: #666;
+    display: inline-block !important;
+    opacity: 0.7;
+}
+
+#discards-table th.sorting_asc::after {
+    content: "⇧" !important;
+    color: #0073aa !important;
+    opacity: 1;
+}
+
+#discards-table th.sorting_desc::after {
+    content: "⇩" !important;
+    color: #0073aa !important;
+    opacity: 1;
+}
+
+/* Asegurar que los headers tengan espacio para la flecha */
+#discards-table th {
+    position: relative;
+    padding-right: 30px;
+}
+
+/* Mejorar la apariencia general de la tabla */
+#discards-table {
+    width: 100% !important;
+    border-collapse: collapse;
+}
+
+#discards-table thead th {
+    background-color: #f1f1f1;
+    border-bottom: 2px solid #ddd;
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    position: relative; /* Para posicionar las flechitas */
+    cursor: pointer;
+}
+
+#discards-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#discards-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+#discards-table tbody td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+}
+
 /* Responsive modal */
 @media (max-width: 768px) {
     .orion-modal-content {

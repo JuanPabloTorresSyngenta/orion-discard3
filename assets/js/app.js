@@ -814,27 +814,41 @@ jQuery(document).ready(function($) {
             function(response) {
                 console.log('✅ App: Barcode validation successful:', response);
                 
-                // Update row status in table to show checkmark
-                const updated = window.discardsTableManager.updateRowStatus(barcode, '✅');
+                // ✅ CORRECCIÓN: Acceder correctamente al post_id de la respuesta
+                // La estructura de wp_send_json_success es: response.post_id (no response.data.post_id)
+                const postId = response.post_id || null;
                 
-                if (updated) {
-                    showMessage(`✅ Material ${barcode} marcado como descartado exitosamente`, 'success');
+                console.log('App: Extracted post_id from response:', postId);
+                console.log('App: Full response structure:', response);
+                
+                if (postId) {
+                    console.log('App: Updating row status for post_id:', postId);
+                    const updated = window.discardsTableManager.updateRowStatusById(postId, '✅');
                     
-                    // Show statistics
-                    const stats = window.discardsTableManager.getStatistics();
-                    console.log('App: Current statistics:', stats);
-                    
-                    // Focus back to scanner
-                    setTimeout(function() {
-                        const $scanner = getElement('scanner');
-                        if ($scanner) {
-                            $scanner.focus();
-                        }
-                    }, 500);
-                    
+                    if (updated) {
+                        showMessage(`✅ Material ${barcode} marcado como descartado exitosamente`, 'success');
+                        
+                        // Show statistics
+                        const stats = window.discardsTableManager.getStatistics();
+                        console.log('App: Current statistics:', stats);
+                        
+                        // Focus back to scanner
+                        setTimeout(function() {
+                            const $scanner = getElement('scanner');
+                            if ($scanner) {
+                                $scanner.focus();
+                            }
+                        }, 500);
+                        
+                    } else {
+                        console.warn('App: Failed to update row status in table for post_id:', postId);
+                        showMessage(`Error al actualizar el estado visual del material ${barcode}`, 'warning');
+                    }
                 } else {
-                    console.warn('App: Failed to update row status in table');
-                    showMessage(`Error al actualizar el estado visual del material ${barcode}`, 'warning');
+                    // ✅ CORRECCIÓN: No usar fallback con barcode, solo post_id
+                    console.error('App: No post_id found in response - cannot update table row');
+                    console.log('App: Available response keys:', Object.keys(response));
+                    showMessage(`Error: No se pudo identificar el registro para actualizar`, 'error');
                 }
             },
             // Error callback
@@ -1092,6 +1106,66 @@ jQuery(document).ready(function($) {
             if (window.Factory && window.Factory.BuildAjaxParamToValidateBarcode) {
                 const testParams = window.Factory.BuildAjaxParamToValidateBarcode(site, year, 'orion-discard', 'TEST123');
                 console.log('Test AJAX params:', testParams);
+            }
+        },
+        
+        // Debug function: Show table data with IDs
+        showTableDataDebug: function() {
+            if (!window.discardsTableManager || !window.discardsTableManager.isInitialized()) {
+                console.log('❌ Table manager not initialized');
+                return;
+            }
+            
+            // Use the table manager's debug function
+            const postIds = window.discardsTableManager.debugPostIds();
+            
+            const data = window.discardsTableManager.getData();
+            console.log('📊 Current table data:');
+            console.table(data.map((row, index) => ({
+                Index: index,
+                ID: row.id || 'NO_ID',
+                PostID: row.post_id || 'NO_POST_ID', 
+                Barcode: row.barcd || 'NO_BARCODE',
+                Status: row.status || 'NO_STATUS',
+                IsDiscarded: row.isDiscarded || 'NO_FLAG',
+                Field: row.field || 'NO_FIELD'
+            })));
+            
+            return data;
+        },
+        
+        // Debug function: Test post_id lookup
+        testPostIdLookup: function(testPostId) {
+            if (!window.discardsTableManager || !window.discardsTableManager.isInitialized()) {
+                console.log('❌ Table manager not initialized');
+                return;
+            }
+            
+            const postId = testPostId || '12345';
+            console.log('🔍 Testing post_id lookup for:', postId);
+            
+            const data = window.discardsTableManager.getData();
+            const found = data.find(row => String(row.id) === String(postId) || String(row.post_id) === String(postId));
+            
+            if (found) {
+                console.log('✅ Found record with post_id:', postId);
+                console.log('Record data:', found);
+                
+                // Test the update function
+                const updated = window.discardsTableManager.updateRowStatusById(postId, '🧪');
+                console.log('Update result:', updated);
+                
+                // Reset after 3 seconds
+                setTimeout(() => {
+                    window.discardsTableManager.updateRowStatusById(postId, found.status || '❌');
+                }, 3000);
+                
+            } else {
+                console.log('❌ No record found with post_id:', postId);
+                console.log('Available post_ids:');
+                data.forEach((row, index) => {
+                    console.log(`  Row ${index}: id=${row.id}, post_id=${row.post_id}`);
+                });
             }
         }
     };
