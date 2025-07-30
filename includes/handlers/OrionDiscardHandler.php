@@ -29,14 +29,13 @@ class OrionDiscardHandler
 
         // Enqueue scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
-       
+        
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));       
 
-        add_action('wp_ajax_get_data_from_vForm_recordType', array($this, 'handle_get_data_from_vForm_recordType'));
-        add_action('wp_ajax_nopriv_get_data_from_vForm_recordType', array($this, 'handle_get_data_from_vForm_recordType'));
+        add_action('wp_ajax_get_data_from_vForm_recordType', array($this, 'handle_get_data_from_vForm_recordType'));       
 
         add_action('wp_ajax_updated_MaterialDiscard', array($this, 'handle_updated_MaterialDiscard'));
-        add_action('wp_ajax_nopriv_updated_MaterialDiscard', array($this, 'handle_updated_MaterialDiscard'));
+    
     }
 
     public function activate()
@@ -82,23 +81,15 @@ class OrionDiscardHandler
             <table id="discards-table" class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th class="manage-column"><?php _e('Estado', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Crop', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Owner', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Submission ID', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Field', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('EXTNO', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Estado', 'orion-discard'); ?></th>                       
+                        <th class="manage-column"><?php _e('Field', 'orion-discard'); ?></th>                      
                         <th class="manage-column"><?php _e('Range', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Row', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('BARCD', 'orion-discard'); ?></th>
+                        <th class="manage-column"><?php _e('Row', 'orion-discard'); ?></th>                       
                         <th class="manage-column"><?php _e('Plot ID', 'orion-discard'); ?></th>
                         <th class="manage-column"><?php _e('Subplot ID', 'orion-discard'); ?></th>
                         <th class="manage-column"><?php _e('MATID', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('ABBRC', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('SD Instruction', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Record Type', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Site', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Year', 'orion-discard'); ?></th>
+                     
+                
                     </tr>
                 </thead>
                 <tbody>
@@ -159,20 +150,38 @@ class OrionDiscardHandler
             true
         );
 
-        // 2. CSV handler second
+        // 2. Table manager second (needs DataTables)
+        wp_enqueue_script(
+            'orion-discards-table-manager',
+            ORION_DISCARD_PLUGIN_URL . 'assets/js/discards-table-manager.js',
+            array('jquery', 'datatables-js'),
+            ORION_DISCARD_VERSION,
+            true
+        );
+
+        // 3. CSV handler third
         wp_enqueue_script(
             'orion-csv-handler',
             ORION_DISCARD_PLUGIN_URL . 'assets/js/csv-handler.js',
+            array('jquery', 'orion-discard-ajax', 'orion-discards-table-manager'),
+            ORION_DISCARD_VERSION,
+            true
+        );
+
+        // 4. Factory fourth (before main app)
+        wp_enqueue_script(
+            'orion-discard-factory',
+            ORION_DISCARD_PLUGIN_URL . 'assets/js/Factories/ajax-param-factory.js',
             array('jquery', 'orion-discard-ajax'),
             ORION_DISCARD_VERSION,
             true
         );
 
-        // 3. Main app script last
+        // 5. Main app script last (depends on all others)
         wp_enqueue_script(
             'orion-discard-script',
             ORION_DISCARD_PLUGIN_URL . 'assets/js/app.js',
-            array('jquery', 'datatables-js', 'orion-discard-ajax', 'orion-csv-handler'),
+            array('jquery', 'datatables-js', 'orion-discard-ajax', 'orion-discards-table-manager', 'orion-csv-handler', 'orion-discard-factory'),
             ORION_DISCARD_VERSION,
             true
         );
@@ -211,8 +220,10 @@ class OrionDiscardHandler
 
         // Same order as frontend
         wp_enqueue_script('orion-discard-ajax', ORION_DISCARD_PLUGIN_URL . 'assets/js/ajax.js', array('jquery'), ORION_DISCARD_VERSION, true);
-        wp_enqueue_script('orion-discard-script-csv', ORION_DISCARD_PLUGIN_URL . 'assets/js/csv-handler.js', array('jquery', 'datatables-js', 'orion-discard-ajax'), ORION_DISCARD_VERSION, true);
-        wp_enqueue_script('orion-discard-script', ORION_DISCARD_PLUGIN_URL . 'assets/js/app.js', array('jquery', 'datatables-js', 'orion-discard-ajax', 'orion-discard-script-csv'), ORION_DISCARD_VERSION, true);
+        wp_enqueue_script('orion-discards-table-manager', ORION_DISCARD_PLUGIN_URL . 'assets/js/discards-table-manager.js', array('jquery', 'datatables-js'), ORION_DISCARD_VERSION, true);
+        wp_enqueue_script('orion-discard-script-csv', ORION_DISCARD_PLUGIN_URL . 'assets/js/csv-handler.js', array('jquery', 'datatables-js', 'orion-discard-ajax', 'orion-discards-table-manager'), ORION_DISCARD_VERSION, true);
+        wp_enqueue_script('orion-discard-factory', ORION_DISCARD_PLUGIN_URL . 'assets/js/Factories/ajax-param-factory.js', array('jquery', 'orion-discard-ajax'), ORION_DISCARD_VERSION, true);
+        wp_enqueue_script('orion-discard-script', ORION_DISCARD_PLUGIN_URL . 'assets/js/app.js', array('jquery', 'datatables-js', 'orion-discard-ajax', 'orion-discards-table-manager', 'orion-discard-script-csv', 'orion-discard-factory'), ORION_DISCARD_VERSION, true);
 
         wp_localize_script('orion-discard-ajax', 'orionDiscard', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -333,6 +344,107 @@ class OrionDiscardHandler
             'headers' => $csv_headers,
             'processed_posts' => $processed_count
         ));
+
+    }
+
+      /**
+     * Handle get data from vForm record type AJAX request
+     */
+    public function handle_get_data_from_vForm_recordType_To_ValidateBarCode()
+    {
+        // ✅ CORRECCIÓN: Usar $_POST en lugar de $_GET
+        // ✅ CORRECCIÓN: Buscar '_ajax_nonce' en lugar de 'nonce'
+        if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'orion_discard_nonce')) {
+
+            wp_send_json_error('Invalid nonce');
+
+            return;
+
+        }
+
+        // ✅ CORRECCIÓN: Cambiar $_GET por $_POST
+        $site = sanitize_text_field($_POST['vdata_site'] ?? '');
+
+        $year = sanitize_text_field($_POST['vdata_year'] ?? '');
+
+        $form_type = sanitize_text_field($_POST['vform_record_type'] ?? '');   
+
+        $field_selected = 'AB-RA';
+
+        $barcode_Read = sanitize_text_field($_POST['barcode_Read'] ??  '');
+
+        if (empty($site) || empty($year) || empty($form_type) || empty($field_selected)) {
+
+            wp_send_json_error('Missing required parameters');
+
+            return;
+
+        }
+
+        // Query posts
+        $posts = get_posts(array(
+            'post_type' => 'vdata',
+            'posts_per_page' => -1,
+            'meta_query' => array(
+                'relation' => 'AND',
+                array(
+                    'key' => 'vdata-site',
+                    'value' => $site,
+                    'compare' => '='
+                ),
+                array(
+                    'key' => 'vdata-year',
+                    'value' => $year,
+                    'compare' => '='
+                ),
+                array(
+                    'key' => 'vform-record-type',
+                    'value' => $form_type,
+                    'compare' => '='
+                )
+            )
+        ));
+
+        if (empty($posts)) {
+
+            wp_send_json_error('No data found');
+
+            return;
+
+        }
+
+        // Process posts - buscar el barcode específico
+        $processed_count = 0;
+
+        $found_post_content = null;
+
+        foreach ($posts as $post) {
+            $processed_count++;
+
+            // Decodificar contenido JSON
+            $post_content = json_decode($post->post_content, true);
+
+            if (!is_array($post_content)) {
+                continue;
+            }
+
+            // Verificar si el barcode coincide - retornar inmediatamente cuando se encuentre
+            if (isset($post_content['barcd']) && $post_content['barcd'] == $barcode_Read) {
+
+                $found_post_content = $post_content;
+
+                break; // Salir del loop una vez encontrado
+            }
+        }
+
+        if (is_null($found_post_content)) {
+            wp_send_json_error('Barcode not found');
+
+            return;
+        }
+
+        // Retornar directamente el post content encontrado
+        wp_send_json_success($found_post_content);
 
     }
 

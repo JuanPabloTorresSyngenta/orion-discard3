@@ -1,245 +1,264 @@
 jQuery(document).ready(function ($) {
-
-    /**
-     * Carga los datos de fincas desde la API de Orion
-     * @param {string} site - El sitio para el cual cargar los datos (ej: "PRSA")
-     * @param {function} onSuccess - Callback cuando los datos se cargan exitosamente
-     * @param {function} onError - Callback cuando hay un error
-     */
-    function loadOrionFieldsData(site, onSuccess, onError) {
-        // Agregar clase loading al dropdown de fincas
-        $("#farms").addClass("loading");
-
-        $.ajax({
-            url: "http://192.168.96.84:8080/orion/wp-json/orion-maps-fields/v1/fields",
-            method: "GET",
-            data: { site: site },
-            success: function (response) {
-                
-                if (response.success && response.data && response.data.fields) {
-                    
-                    // Llamar callback de éxito con los datos
-                    if (typeof onSuccess === 'function') {
-                        onSuccess(response.data.fields);
-                    }
-                } else {
-                    
-                    if (typeof onError === 'function') {
-                        onError("Error al cargar los datos de las fincas");
-                    }
-                }
-            },
-            error: function (xhr, status, error) {
-                
-                if (typeof onError === 'function') {
-                    onError("Error de conexión al cargar los datos");
-                }
-            },
-            complete: function () {
-                $("#farms").removeClass("loading");
-            }
-        });
-    }
-
-    /**
-     * Verifica si un código de barras ya existe en la base de datos
-     * @param {string} barcode - El código de barras a verificar
-     * @param {function} callback - Función callback que recibe true si existe, false si no
-     */
-    function checkDuplicateBarcode(barcode, callback) {
-
-        ajaxParam = {
-            action: "check_duplicate_barcd",
-            barcode: barcode,
-            nonce: orionDiscard.nonce,
+  /**
+   * Carga los datos de fincas desde la API de Orion
+   * @param {object} ajaxParam - El sitio para el cual cargar los datos (ej: "PRSA")
+   * @param {string} url - La URL de la API
+   * @param {string} method - Método HTTP a utilizar (GET/POST)
+   * @param {function} onSuccess - Callback cuando los datos se cargan exitosamente
+   * @param {function} onError - Callback cuando hay un error
+   * @param {function} onComplete - Callback que se ejecuta al finalizar la petición
+   */
+  function ajax_fetchOrionFieldsData(
+    ajaxParam,
+    url,
+    method,
+    onSuccess,
+    onError,
+    onComplete
+  ) {
+    $.ajax({
+      url: url,
+      method: method,
+      data: ajaxParam,
+      success: function (response) {
+        if (response.success && response.data && response.data.fields) {
+          // Llamar callback de éxito con los datos
+          if (typeof onSuccess === "function") {
+            onSuccess(response);
+          }
+        } else {
+          if (typeof onError === "function") {
+            onError("Error al cargar los datos de las fincas");
+          }
         }
-
-        $.ajax({
-            url: orionDiscard.ajaxUrl,
-            method: "POST",
-            data: ajaxParam,
-            success: function (response) {
-                callback(response.success ? response.data.exists : false);
-            },
-            error: function (xhr, status, error) {
-                callback(false);
-            }
-        });
-    }
-    
-    /**
-     * Obtiene datos CSV desde vForm basado en tipo de registro
-     * @param {string} recordType - Tipo de registro del formulario
-     * @param {string} site - Sitio (ej: "PRSA")  
-     * @param {string} year - Año para filtrar datos
-     * @param {function} onSuccess - Callback de éxito
-     * @param {function} onError - Callback de error
-     */
-    function getDataFrom_vFromRecordType(recordType, site, year, onSuccess, onError) {
-        
-        // Validar parámetros requeridos
-        if (!recordType || !site || !year) {
-
-            if (typeof onError === 'function') {
-                onError("Parámetros requeridos faltantes");
-            }
-
-            return;
+      },
+      error: function (xhr, status, error) {
+        if (typeof onError === "function") {
+          onError(error);
         }
-
-        // Mostrar indicador de carga
-        if (typeof window.showCSVLoadingIndicator === 'function') {
-            window.showCSVLoadingIndicator(true);
+      },
+      complete: function () {
+        if (typeof onComplete === "function") {
+          onComplete("Finished loading fields data");
         }
+      },
+    });
+  }
 
-        const ajaxParams = {
-            action: 'get_data_from_vForm_recordType', // ✅ Coincide con wp_ajax hook
-            _ajax_nonce: orionDiscard.nonce,
-            vform_record_type: recordType,
-            vdata_site: site,
-            vdata_year: year,
-            fieldId: $('#fields').val(), // Obtener el ID del campo seleccionado
-        };
+  /**
+   * Verifica si un código de barras ya existe en la base de datos
+   * @param {string} barcode - El código de barras a verificar
+   * @param {function} callback - Función callback que recibe true si existe, false si no
+   * @param {object} ajaxParam - Parámetros AJAX adicionales
+   * @param {string} method - Método HTTP a utilizar (GET/POST)
+   * @param {function} onSuccess - Callback de éxito
+   * @param {function} onError - Callback de error
+   * @param {function} onComplete - Callback de finalización
+   */
+  function ajax_checkDuplicateBarcode(
+    ajaxParam,
+    method,
+    onSuccess,
+    onError,
+    onComplete
+  ) {
+    $.ajax({
+      url: orionDiscard.ajaxUrl,
+      method: method,
+      data: ajaxParam,
+      success: function (response) {
+        if (typeof onSuccess === "function") {
+          onSuccess(response);
+        }
+      },
+      error: function (xhr, status, error) {
+        if (typeof onError === "function") {
+          onError("Error de conexión al verificar código de barras");
+        }
+      },
+      complete: function () {
+        if (typeof onComplete === "function") {
+          onComplete();
+        }
+      },
+    });
+  }
 
-        $.ajax({
-            url: orionDiscard.ajaxUrl,
-            method: 'POST', // ✅ Cambiar de GET a POST para WordPress AJAX
-            data: ajaxParams,
-            dataType: 'json',
-            success: function(response) {
-                
-                if (response.success && response.data) {
-                    
-                    // Usar la nueva función de procesamiento de datos
-                    if (typeof window.csvHandler !== 'undefined' && typeof window.csvHandler.processRetrievedData === 'function') {
-                        window.csvHandler.processRetrievedData(response.data);
-                    } else {
-                        // Ejecutar callback de éxito como fallback
-                        if (typeof onSuccess === 'function') {
-                            onSuccess(response.data);
-                        }
-                    }
+  /**
+   * Obtiene datos CSV desde vForm basado en tipo de registro
+   * @param {object} ajaxParam - El sitio para el cual cargar los datos (ej: "PRSA")
+   * @param {string} method - Método HTTP a utilizar (GET/POST)
+   * @param {function} onSuccess - Callback de éxito
+   * @param {function} onError - Callback de error
+   * @param {function} onComplete - Callback de finalización
+   */
+  function ajax_getDataFrom_vFromRecordType(
+    ajaxParam,
+    method,
+    onSuccess,
+    onError,
+    onComplete
+  ) {
+    // Validar parámetros requeridos
+    if (!ajaxParam.vform_record_type || !ajaxParam.vdata_site || !ajaxParam.vdata_year) {
+      if (typeof onError === "function") {
+        onError("Parámetros requeridos faltantes");
+      }
 
-                } else {
-                    
-                    if (typeof onError === 'function') {
-                        onError(response.message || 'Error al obtener datos CSV');
-                    }
-                }
-            },
-            error: function(xhr, status, error) {
-                
-                if (typeof onError === 'function') {
-                    onError('Error de conexión al obtener datos CSV');
-                }
-            },
-            complete: function() {
-                // Ocultar indicador de carga
-                if (typeof window.showCSVLoadingIndicator === 'function') {
-                    window.showCSVLoadingIndicator(false);
-                }
-            }
-        });
+      return;
     }
 
-    /**
-     * Procesa el envío del formulario de descarte con validaciones mejoradas
-     */
-    function proceedWithSubmission() {
-        const ajaxParam = {
-            action: "submit_discard",
-            nonce: orionDiscard.nonce,
-            farm_id: $("#farms").val(),    
-            section_id: $("#sections").val(),   
-            field_id: $("#fields").val(),   
-            scanned_code: $("#scanner-input").val(),
-        };
-
-        // Disable submit button
-        $("#btn-submit").prop("disabled", true).text("Procesando...");
-
-        $.ajax({
-            url: orionDiscard.ajaxUrl,
-            method: "POST",
-            data: ajaxParam,
-            dataType: 'json',
-            success: function (response) {
-                
-                // Verificar estructura de respuesta válida
-                if (typeof response === 'object' && response !== null) {
-                    
-                    if (response.success === true) {
-                        // Éxito: Registro creado exitosamente
-                        showMessage("Descarte registrado exitosamente", "success");
-                        resetForm();
-                        
-                        // Refrescar tabla si existe
-                        if (typeof refreshDataTable === 'function') {
-                            refreshDataTable();
-                        }
-                        
-                        // Limpiar campo de scanner para próximo escaneo
-                        $("#scanner-input").val('').focus();
-                        
-                    } else {
-                        // Error del servidor con mensaje específico
-                        const errorMessage = response.data && response.data.message 
-                            ? response.data.message 
-                            : response.message || "Error desconocido del servidor";
-                        
-                        showMessage("Error al registrar el descarte: " + errorMessage, "error");
-                        
-                        // Si es error de duplicado, enfocar el campo scanner
-                        if (errorMessage.toLowerCase().includes('duplicado') || 
-                            errorMessage.toLowerCase().includes('existe')) {
-                            $("#scanner-input").focus().select();
-                        }
-                    }
-                    
-                } else {
-                    // Respuesta inválida del servidor
-                    showMessage("Respuesta inválida del servidor", "error");
-                }
-            },
-            error: function (xhr, status, error) {
-                
-                let errorMessage = "Error de conexión al enviar el formulario";
-                
-                // Analizar el tipo de error para dar feedback específico
-                if (xhr.status === 0) {
-                    errorMessage = "Sin conexión a internet. Verifique su conexión.";
-                } else if (xhr.status === 403) {
-                    errorMessage = "No tiene permisos para realizar esta acción.";
-                } else if (xhr.status === 404) {
-                    errorMessage = "Endpoint no encontrado. Contacte al administrador.";
-                } else if (xhr.status === 500) {
-                    errorMessage = "Error interno del servidor. Intente nuevamente.";
-                } else if (xhr.status >= 400 && xhr.status < 500) {
-                    errorMessage = "Error en la solicitud. Verifique los datos ingresados.";
-                } else if (xhr.status >= 500) {
-                    errorMessage = "Error del servidor. Contacte al administrador.";
-                }
-                
-                showMessage(errorMessage, "error");
-                
-                // Log detallado para debugging
-                console.error('Ajax submission error:', {
-                    status: xhr.status,
-                    statusText: xhr.statusText,
-                    responseText: xhr.responseText,
-                    error: error
-                });
-            },
-            complete: function () {
-                // Siempre restaurar el botón sin importar el resultado
-                $("#btn-submit").prop("disabled", false).text("Submit");
-            }
-        });
+    // Mostrar indicador de carga
+    if (typeof window.showCSVLoadingIndicator === "function") {
+      window.showCSVLoadingIndicator(true);
     }
 
-    // Exponer funciones globalmente
-    window.loadOrionFieldsData = loadOrionFieldsData;
-    window.checkDuplicateBarcode = checkDuplicateBarcode;
-    window.getDataFrom_vFromRecordType = getDataFrom_vFromRecordType;
-    window.proceedWithSubmission = proceedWithSubmission;
+    $.ajax({
+      url: orionDiscard.ajaxUrl,
+      method: method,
+      data: ajaxParam,
+      dataType: RESPONSE_TYPES.JSON,
+      success: function (response) {
+        if (typeof onSuccess === "function") {
+          onSuccess(response);
+        }
+      },
+      error: function (xhr, status, error) {
+        if (typeof onError === "function") {
+          onError(error);
+        }
+      },
+      complete: function () {
+        if (typeof onComplete === "function") {
+          onComplete();
+        }
+      },
+    });
+  }
+
+  /**
+   * Obtiene datos CSV desde vForm basado en tipo de registro
+   * @param {object} ajaxParam - El sitio para el cual cargar los datos (ej: "PRSA")
+   * @param {string} method - Método HTTP a utilizar (GET/POST)
+   * @param {function} onSuccess - Callback de éxito
+   * @param {function} onError - Callback de error
+   * @param {function} onComplete - Callback de finalización
+   */
+  function ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode(
+    ajaxParam,
+    method,
+    onSuccess,
+    onError,
+    onComplete
+  ) {
+    // Validar parámetros requeridos
+    if (!ajaxParam.recordType || !ajaxParam.site || !ajaxParam.year) {
+      if (typeof onError === "function") {
+        onError("Parámetros requeridos faltantes");
+      }
+
+      return;
+    }
+
+    // Mostrar indicador de carga
+    if (typeof window.showCSVLoadingIndicator === "function") {
+      window.showCSVLoadingIndicator(true);
+    }  
+
+    $.ajax({
+      url: orionDiscard.ajaxUrl,
+      method: method, // ✅ Cambiar de GET a POST para WordPress AJAX
+      data: ajaxParams,
+      dataType: RESPONSE_TYPES.JSON,
+      success: function (response) {
+        if (response.success && response.data) {
+          onSuccess(response.data);
+        } else {
+          if (typeof onError === "function") {
+            onError(response.message || "Error al obtener datos CSV");
+          }
+        }
+      },
+      error: function (xhr, status, error) {
+        if (typeof onError === "function") {
+          onError("Error de conexión al obtener datos CSV");
+        }
+      },
+      complete: function () {
+
+        if( typeof onComplete === "function") {
+            onComplete("Finished loading vForm record type data");
+            }
+
+      
+      },
+    });
+  }
+
+  // ============================================================================
+  // HTTP METHODS ENUM
+  // ============================================================================
+
+  /**
+   * Enum para métodos HTTP utilizados en las peticiones AJAX
+   * Centraliza todos los métodos HTTP disponibles para evitar errores de tipeo
+   */
+  const HTTP_METHODS = {
+    // Métodos principales
+    GET: "GET",
+    POST: "POST",
+    PUT: "PUT",
+    DELETE: "DELETE",
+    PATCH: "PATCH",
+
+    // Métodos adicionales
+    HEAD: "HEAD",
+    OPTIONS: "OPTIONS",
+    CONNECT: "CONNECT",
+    TRACE: "TRACE",
+  };
+
+  /**
+   * Enum para tipos de contenido (Content-Type) más comunes
+   * Útil para configurar headers en peticiones AJAX
+   */
+  const CONTENT_TYPES = {
+    JSON: "application/json",
+    FORM_DATA: "application/x-www-form-urlencoded",
+    MULTIPART: "multipart/form-data",
+    TEXT: "text/plain",
+    HTML: "text/html",
+    XML: "application/xml",
+    CSV: "text/csv",
+  };
+
+  /**
+   * Enum para tipos de datos de respuesta (dataType)
+   * Define el tipo de datos esperado del servidor
+   */
+  const RESPONSE_TYPES = {
+    JSON: "json",
+    XML: "xml",
+    HTML: "html",
+    TEXT: "text",
+    SCRIPT: "script",
+    JSONP: "jsonp",
+  };
+
+  // Exponer funciones globalmente
+  window.ajax_fetchOrionFieldsData = ajax_fetchOrionFieldsData;
+
+  window.ajax_checkDuplicateBarcode = ajax_checkDuplicateBarcode;
+
+  window.ajax_getDataFrom_vFromRecordType = ajax_getDataFrom_vFromRecordType;
+
+  window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode =
+    ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode;
+
+  // Exponer enums globalmente
+  window.HTTP_METHODS = HTTP_METHODS;
+
+  window.CONTENT_TYPES = CONTENT_TYPES;
+
+  window.RESPONSE_TYPES = RESPONSE_TYPES;
 });
