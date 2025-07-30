@@ -1,4 +1,58 @@
 jQuery(document).ready(function ($) {
+  // ============================================================================
+  // HTTP METHODS & RESPONSE TYPES ENUMS
+  // ============================================================================
+
+  /**
+   * Enum para métodos HTTP utilizados en las peticiones AJAX
+   * Centraliza todos los métodos HTTP disponibles para evitar errores de tipeo
+   */
+  const HTTP_METHODS = {
+    // Métodos principales
+    GET: "GET",
+    POST: "POST",
+    PUT: "PUT",
+    DELETE: "DELETE",
+    PATCH: "PATCH",
+
+    // Métodos adicionales
+    HEAD: "HEAD",
+    OPTIONS: "OPTIONS",
+    CONNECT: "CONNECT",
+    TRACE: "TRACE",
+  };
+
+  /**
+   * Enum para tipos de contenido (Content-Type) más comunes
+   * Útil para configurar headers en peticiones AJAX
+   */
+  const CONTENT_TYPES = {
+    JSON: "application/json",
+    FORM_DATA: "application/x-www-form-urlencoded",
+    MULTIPART: "multipart/form-data",
+    TEXT: "text/plain",
+    HTML: "text/html",
+    XML: "application/xml",
+    CSV: "text/csv",
+  };
+
+  /**
+   * Enum para tipos de datos de respuesta (dataType)
+   * Define el tipo de datos esperado del servidor
+   */
+  const RESPONSE_TYPES = {
+    JSON: "json",
+    XML: "xml",
+    HTML: "html",
+    TEXT: "text",
+    SCRIPT: "script",
+    JSONP: "jsonp",
+  };
+
+  // ============================================================================
+  // AJAX FUNCTIONS - ORION API INTEGRATION
+  // ============================================================================
+
   /**
    * Carga los datos de fincas desde la API de Orion
    * @param {object} ajaxParam - El sitio para el cual cargar los datos (ej: "PRSA")
@@ -45,10 +99,12 @@ jQuery(document).ready(function ($) {
     });
   }
 
+  // ============================================================================
+  // AJAX FUNCTIONS - BARCODE VALIDATION
+  // ============================================================================
+
   /**
    * Verifica si un código de barras ya existe en la base de datos
-   * @param {string} barcode - El código de barras a verificar
-   * @param {function} callback - Función callback que recibe true si existe, false si no
    * @param {object} ajaxParam - Parámetros AJAX adicionales
    * @param {string} method - Método HTTP a utilizar (GET/POST)
    * @param {function} onSuccess - Callback de éxito
@@ -73,7 +129,7 @@ jQuery(document).ready(function ($) {
       },
       error: function (xhr, status, error) {
         if (typeof onError === "function") {
-          onError("Error de conexión al verificar código de barras");
+          onError(error);
         }
       },
       complete: function () {
@@ -84,9 +140,13 @@ jQuery(document).ready(function ($) {
     });
   }
 
+  // ============================================================================
+  // AJAX FUNCTIONS - vFORM INTEGRATION
+  // ============================================================================
+
   /**
    * Obtiene datos CSV desde vForm basado en tipo de registro
-   * @param {object} ajaxParam - El sitio para el cual cargar los datos (ej: "PRSA")
+   * @param {object} ajaxParam - Parámetros que incluyen vform_record_type, vdata_site, vdata_year
    * @param {string} method - Método HTTP a utilizar (GET/POST)
    * @param {function} onSuccess - Callback de éxito
    * @param {function} onError - Callback de error
@@ -137,8 +197,8 @@ jQuery(document).ready(function ($) {
   }
 
   /**
-   * Obtiene datos CSV desde vForm basado en tipo de registro
-   * @param {object} ajaxParam - El sitio para el cual cargar los datos (ej: "PRSA")
+   * Obtiene datos CSV desde vForm basado en tipo de registro para validar códigos de barras
+   * @param {object} ajaxParam - Parámetros que incluyen recordType, site, year
    * @param {string} method - Método HTTP a utilizar (GET/POST)
    * @param {function} onSuccess - Callback de éxito
    * @param {function} onError - Callback de error
@@ -168,7 +228,7 @@ jQuery(document).ready(function ($) {
     $.ajax({
       url: orionDiscard.ajaxUrl,
       method: method, // ✅ Cambiar de GET a POST para WordPress AJAX
-      data: ajaxParams,
+      data: ajaxParam, // ✅ CORREGIDO: era ajaxParams, ahora es ajaxParam
       dataType: RESPONSE_TYPES.JSON,
       success: function (response) {
         if (response.success && response.data) {
@@ -196,69 +256,18 @@ jQuery(document).ready(function ($) {
   }
 
   // ============================================================================
-  // HTTP METHODS ENUM
+  // GLOBAL EXPORTS
   // ============================================================================
 
-  /**
-   * Enum para métodos HTTP utilizados en las peticiones AJAX
-   * Centraliza todos los métodos HTTP disponibles para evitar errores de tipeo
-   */
-  const HTTP_METHODS = {
-    // Métodos principales
-    GET: "GET",
-    POST: "POST",
-    PUT: "PUT",
-    DELETE: "DELETE",
-    PATCH: "PATCH",
-
-    // Métodos adicionales
-    HEAD: "HEAD",
-    OPTIONS: "OPTIONS",
-    CONNECT: "CONNECT",
-    TRACE: "TRACE",
-  };
-
-  /**
-   * Enum para tipos de contenido (Content-Type) más comunes
-   * Útil para configurar headers en peticiones AJAX
-   */
-  const CONTENT_TYPES = {
-    JSON: "application/json",
-    FORM_DATA: "application/x-www-form-urlencoded",
-    MULTIPART: "multipart/form-data",
-    TEXT: "text/plain",
-    HTML: "text/html",
-    XML: "application/xml",
-    CSV: "text/csv",
-  };
-
-  /**
-   * Enum para tipos de datos de respuesta (dataType)
-   * Define el tipo de datos esperado del servidor
-   */
-  const RESPONSE_TYPES = {
-    JSON: "json",
-    XML: "xml",
-    HTML: "html",
-    TEXT: "text",
-    SCRIPT: "script",
-    JSONP: "jsonp",
-  };
-
-  // Exponer funciones globalmente
+  // Exponer funciones AJAX globalmente
   window.ajax_fetchOrionFieldsData = ajax_fetchOrionFieldsData;
-
   window.ajax_checkDuplicateBarcode = ajax_checkDuplicateBarcode;
-
   window.ajax_getDataFrom_vFromRecordType = ajax_getDataFrom_vFromRecordType;
-
   window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode =
     ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode;
 
   // Exponer enums globalmente
   window.HTTP_METHODS = HTTP_METHODS;
-
   window.CONTENT_TYPES = CONTENT_TYPES;
-
   window.RESPONSE_TYPES = RESPONSE_TYPES;
 });

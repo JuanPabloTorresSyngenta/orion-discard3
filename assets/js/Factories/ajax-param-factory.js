@@ -72,6 +72,7 @@ jQuery(document).ready(function ($) {
    * @param {string} recordType - Tipo de registro del formulario
    * @param {string} site - Código del sitio
    * @param {string} year - Año para filtrar datos
+   * @param {string} barcode - Código de barras a enviar
    * @param {string} action - Acción WordPress AJAX
    * @returns {object} Objeto con parámetros AJAX
    */
@@ -79,6 +80,7 @@ jQuery(document).ready(function ($) {
     recordType,
     site,
     year,
+    barcode,
     action
   ) {
     // Validar parámetros requeridos
@@ -99,7 +101,7 @@ jQuery(document).ready(function ($) {
       vform_record_type: recordType,
       vdata_site: site,
       vdata_year: year,
-      barcode: $("#scanner-input").val() || '', // Obtener el código escaneado
+      barcode: barcode || '', // Obtener el código escaneado
     };
     
     return ajaxParams;

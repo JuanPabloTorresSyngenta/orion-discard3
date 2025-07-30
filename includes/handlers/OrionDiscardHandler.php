@@ -29,10 +29,12 @@ class OrionDiscardHandler
 
         // Enqueue scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        
+
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));       
 
         add_action('wp_ajax_get_data_from_vForm_recordType', array($this, 'handle_get_data_from_vForm_recordType'));       
+
+        add_action('wp_ajax_get_data_from_vForm_recordType_To_ValidateBarCode', array($this, 'handle_get_data_from_vForm_recordType_To_ValidateBarCode'));
 
         add_action('wp_ajax_updated_MaterialDiscard', array($this, 'handle_updated_MaterialDiscard'));
     
@@ -88,8 +90,7 @@ class OrionDiscardHandler
                         <th class="manage-column"><?php _e('Plot ID', 'orion-discard'); ?></th>
                         <th class="manage-column"><?php _e('Subplot ID', 'orion-discard'); ?></th>
                         <th class="manage-column"><?php _e('MATID', 'orion-discard'); ?></th>
-                     
-                
+                        <th class="manage-column"><?php _e('Código', 'orion-discard'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -347,106 +348,217 @@ class OrionDiscardHandler
 
     }
 
-      /**
-     * Handle get data from vForm record type AJAX request
-     */
-    public function handle_get_data_from_vForm_recordType_To_ValidateBarCode()
-    {
-        // ✅ CORRECCIÓN: Usar $_POST en lugar de $_GET
-        // ✅ CORRECCIÓN: Buscar '_ajax_nonce' en lugar de 'nonce'
-        if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'orion_discard_nonce')) {
+    // /**
+    //  * Efficiently handle barcode validation and discard marking AJAX request
+    //  */
+    // public function handle_get_data_from_vForm_recordType_To_ValidateBarCode()
+    // {
+    //     // Security check
+    //     if (
+    //         empty($_POST['_ajax_nonce']) ||
+    //         !wp_verify_nonce($_POST['_ajax_nonce'], 'orion_discard_nonce')
+    //     ) {
+    //         wp_send_json_error('Invalid nonce');
+    //         return;
+    //     }
 
-            wp_send_json_error('Invalid nonce');
+    //     // Sanitize and validate input
+    //     $site = sanitize_text_field($_POST['vdata_site'] ?? '');
+    //     $year = sanitize_text_field($_POST['vdata_year'] ?? '');
+    //     $form_type = sanitize_text_field($_POST['vform_record_type'] ?? '');
+    //     $barcode_read = sanitize_text_field($_POST['barcode_Read'] ?? '');
+    //     $field_selected = 'AB-RA'; // TODO: Make configurable
 
-            return;
+    //     if (!$site || !$year || !$form_type || !$field_selected || !$barcode_read) {
+    //         wp_send_json_error('Missing required parameters');
+    //         return;
+    //     }
 
-        }
+    //     // Query only posts that may contain the barcode
+    //     $posts = get_posts([
+    //         'post_type'      => 'vdata',
+    //         'posts_per_page' => -1,
+    //         'fields'         => 'ids',
+    //         'meta_query'     => [
+    //             'relation' => 'AND',
+    //             [
+    //                 'key'   => 'vdata-site',
+    //                 'value' => $site,
+    //             ],
+    //             [
+    //                 'key'   => 'vdata-year',
+    //                 'value' => $year,
+    //             ],
+    //             [
+    //                 'key'   => 'vform-record-type',
+    //                 'value' => $form_type,
+    //             ],
+    //         ],
+    //     ]);
 
-        // ✅ CORRECCIÓN: Cambiar $_GET por $_POST
-        $site = sanitize_text_field($_POST['vdata_site'] ?? '');
+    //     if (empty($posts)) {
+    //         wp_send_json_error('No data found for the specified criteria');
+    //         return;
+    //     }
 
-        $year = sanitize_text_field($_POST['vdata_year'] ?? '');
+    //     // Efficient barcode search
+    //     foreach ($posts as $post_id) {
+    //         $content = get_post_field('post_content', $post_id);
+    //         $data = json_decode($content, true);
 
-        $form_type = sanitize_text_field($_POST['vform_record_type'] ?? '');   
+    //         if (!is_array($data) || empty($data['barcd'])) {
+    //             continue;
+    //         }
 
-        $field_selected = 'AB-RA';
+    //         if ($data['barcd'] === $barcode_read) {
+    //             // Already discarded?
+    //             if (!empty($data['isDiscarded'])) {
+    //                 wp_send_json_error([
+    //                     'message' => 'Barcode already discarded',
+    //                     'barcode' => $barcode_read,
+    //                     'data'    => $data,
+    //                 ]);
+    //                 return;
+    //             }
 
-        $barcode_Read = sanitize_text_field($_POST['barcode_Read'] ??  '');
+    //             // Mark as discarded
+    //             $data['isDiscarded']   = true;
+    //             $data['discarded_at']  = current_time('mysql');
+    //             $data['discarded_by']  = get_current_user_id();
 
-        if (empty($site) || empty($year) || empty($form_type) || empty($field_selected)) {
+    //             $update = wp_update_post([
+    //                 'ID'           => $post_id,
+    //                 'post_content' => wp_json_encode($data),
+    //             ], true);
 
-            wp_send_json_error('Missing required parameters');
+    //             if (is_wp_error($update)) {
+    //                 wp_send_json_error([
+    //                     'message' => 'Failed to update discard status',
+    //                     'error'   => $update->get_error_message(),
+    //                 ]);
+    //                 return;
+    //             }
 
-            return;
+    //             wp_send_json_success([
+    //                 'message'           => 'Barcode successfully marked as discarded',
+    //                 'barcode'           => $barcode_read,
+    //                 'post_id'           => $post_id,
+    //                 'data'              => $data,
+    //             ]);
+    //             return;
+    //         }
+    //     }
 
-        }
+    //     // Not found
+    //     wp_send_json_error([
+    //         'message' => 'Barcode not found',
+    //         'barcode' => $barcode_read,
+    //     ]);
+    // }
 
-        // Query posts
-        $posts = get_posts(array(
-            'post_type' => 'vdata',
-            'posts_per_page' => -1,
-            'meta_query' => array(
-                'relation' => 'AND',
-                array(
-                    'key' => 'vdata-site',
-                    'value' => $site,
-                    'compare' => '='
-                ),
-                array(
-                    'key' => 'vdata-year',
-                    'value' => $year,
-                    'compare' => '='
-                ),
-                array(
-                    'key' => 'vform-record-type',
-                    'value' => $form_type,
-                    'compare' => '='
-                )
-            )
-        ));
-
-        if (empty($posts)) {
-
-            wp_send_json_error('No data found');
-
-            return;
-
-        }
-
-        // Process posts - buscar el barcode específico
-        $processed_count = 0;
-
-        $found_post_content = null;
-
-        foreach ($posts as $post) {
-            $processed_count++;
-
-            // Decodificar contenido JSON
-            $post_content = json_decode($post->post_content, true);
-
-            if (!is_array($post_content)) {
-                continue;
-            }
-
-            // Verificar si el barcode coincide - retornar inmediatamente cuando se encuentre
-            if (isset($post_content['barcd']) && $post_content['barcd'] == $barcode_Read) {
-
-                $found_post_content = $post_content;
-
-                break; // Salir del loop una vez encontrado
-            }
-        }
-
-        if (is_null($found_post_content)) {
-            wp_send_json_error('Barcode not found');
-
-            return;
-        }
-
-        // Retornar directamente el post content encontrado
-        wp_send_json_success($found_post_content);
-
+    public function handle_get_data_from_vForm_recordType_To_ValidateBarCode() {
+    // Seguridad
+    if (
+        empty($_POST['_ajax_nonce']) ||
+        !wp_verify_nonce($_POST['_ajax_nonce'], 'orion_discard_nonce')
+    ) {
+        wp_send_json_error('Invalid nonce');
     }
+ 
+    // Sanitización
+    $site = sanitize_text_field($_POST['vdata_site'] ?? '');
+    $year = sanitize_text_field($_POST['vdata_year'] ?? '');
+    $form_type = sanitize_text_field($_POST['vform_record_type'] ?? '');
+    $barcode_read = sanitize_text_field($_POST['barcode_Read'] ?? '');
+    $field_selected = 'AB-RA';
+ 
+    // Validación mínima antes de continuar
+    if (!$site || !$year || !$form_type || !$barcode_read) {
+        wp_send_json_error('Missing required parameters');
+    }
+ 
+    // Buscar posts por meta (limitamos los campos para rendimiento)
+    $query = new WP_Query([
+        'post_type' => 'vdata',
+        'posts_per_page' => -1,        
+        'fields' => 'ids',
+        'no_found_rows' => true,
+        'meta_query' => [
+            'relation' => 'AND',
+            [
+                'key' => 'vdata-site',
+                'value' => $site,
+            ],
+            [
+                'key' => 'vdata-year',
+                'value' => $year,
+            ],
+            [
+                'key' => 'vform-record-type',
+                'value' => $form_type,
+            ],
+        ],
+    ]);
+ 
+    if (!$query->have_posts()) {
+        wp_send_json_error('No data found for the specified criteria');
+    }
+ 
+    foreach ($query->posts as $post_id) {
+        $content = get_post_field('post_content', $post_id);
+ 
+        if (!$content) {
+            continue;
+        }
+ 
+        $data = json_decode($content, true);
+        if (!is_array($data) || empty($data['barcd'])) {
+            continue;
+        }
+ 
+        // Comparación de código de barras
+        if (trim($data['barcd']) === $barcode_read) {
+
+            if (!empty($data['isDiscarded'])) {
+                wp_send_json_error([
+                    'message' => 'Barcode already discarded',
+                    'barcode' => $barcode_read,
+                    'data' => $data,
+                ]);
+            }
+ 
+            // Actualizar el estado de descarte
+            $data['isDiscarded'] = true;
+            $data['discarded_at'] = current_time('mysql');
+            $data['discarded_by'] = get_current_user_id();
+ 
+            $update = wp_update_post([
+                'ID' => $post_id,
+                'post_content' => wp_json_encode($data),
+            ], true);
+ 
+            if (is_wp_error($update)) {
+                wp_send_json_error([
+                    'message' => 'Failed to update discard status',
+                    'error' => $update->get_error_message(),
+                ]);
+            }
+ 
+            wp_send_json_success([
+                'message' => 'Barcode successfully marked as discarded',
+                'barcode' => $barcode_read,
+                'post_id' => $post_id,
+                'data' => $data,
+            ]);
+        }
+    }
+ 
+    // Código no encontrado
+    wp_send_json_error([
+        'message' => 'Barcode not found',
+        'barcode' => $barcode_read,
+    ]);
+}
 
     function handle_updated_MaterialDiscard()
     {
