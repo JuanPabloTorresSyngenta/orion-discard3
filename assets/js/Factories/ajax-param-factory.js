@@ -135,6 +135,39 @@ jQuery(document).ready(function ($) {
     return ajaxParams;
   };
 
+  /**
+   * Construye parámetros AJAX para validar y marcar código de barras como descartado
+   * @param {string} site - Código del sitio
+   * @param {string} year - Año para filtrar datos
+   * @param {string} recordType - Tipo de registro del formulario
+   * @param {string} barcode - Código de barras a validar
+   * @returns {object} Objeto con parámetros AJAX
+   */
+  window.Factory.BuildAjaxParamToValidateBarcode = function (site, year, recordType, barcode) {
+    // Validar parámetros requeridos
+    if (!site || !year || !recordType || !barcode) {
+      console.warn('Factory: site, year, recordType, and barcode parameters are required');
+      return null;
+    }
+
+    // Validar que orionDiscard esté disponible
+    if (typeof orionDiscard === 'undefined' || !orionDiscard.nonce) {
+      console.error('Factory: orionDiscard object or nonce not available');
+      return null;
+    }
+
+    const ajaxParams = {
+      action: 'get_data_from_vForm_recordType_To_ValidateBarCode',
+      _ajax_nonce: orionDiscard.nonce,
+      vdata_site: site,
+      vdata_year: year,
+      vform_record_type: recordType,
+      barcode_Read: barcode
+    };
+    
+    return ajaxParams;
+  };
+
   // ============================================================================
   // UTILITY FUNCTIONS
   // ============================================================================

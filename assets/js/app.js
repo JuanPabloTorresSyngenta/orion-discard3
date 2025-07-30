@@ -676,37 +676,54 @@ jQuery(document).ready(function($) {
         // Scanner input handling - use event delegation
         $container.on('input', 'input[name*="scanner"], input[id*="scanner"], input[name*="barcode"], #scanner-input', function() {
             const scannedCode = $(this).val().trim();
+            console.log('📥 App: Scanner input detected, value:', scannedCode);
             
             if (scannedCode.length > 0) {
+                console.log('App: Valid barcode input detected, setting timeout...');
+                
                 // Clear previous timeout
                 if (barcodeValidationTimeout) {
                     clearTimeout(barcodeValidationTimeout);
+                    console.log('App: Cleared previous validation timeout');
                 }
                 
                 // Set new timeout for validation
                 barcodeValidationTimeout = setTimeout(function() {
+                    console.log('⏰ App: Timeout executed, processing barcode:', scannedCode);
                     processBarcodeInput(scannedCode);
                     // Clear input after processing - find the specific element that triggered
                     const $scanner = getElement('scanner');
                     if ($scanner) {
                         $scanner.val('');
+                        console.log('App: Scanner input cleared');
                     }
                 }, 300); // Small delay to allow complete barcode entry
+            } else {
+                console.log('App: Empty scanner input, ignoring');
             }
         });
         
         // Scanner input enter key - use event delegation
         $container.on('keypress', 'input[name*="scanner"], input[id*="scanner"], input[name*="barcode"], #scanner-input', function(e) {
+            console.log('⌨️ App: Keypress detected on scanner input, key:', e.which);
+            
             if (e.which === 13) { // Enter key
+                console.log('App: Enter key pressed on scanner input');
                 e.preventDefault();
                 const scannedCode = $(this).val().trim();
+                console.log('App: Processing barcode from Enter key:', scannedCode);
+                
                 if (scannedCode.length > 0) {
                     // Clear timeout since we're processing immediately
                     if (barcodeValidationTimeout) {
                         clearTimeout(barcodeValidationTimeout);
+                        console.log('App: Cleared validation timeout for immediate processing');
                     }
                     processBarcodeInput(scannedCode);
                     $(this).val('');
+                    console.log('App: Scanner input cleared after Enter key processing');
+                } else {
+                    console.log('App: Empty scanner input on Enter key, ignoring');
                 }
             }
         });
@@ -720,49 +737,123 @@ jQuery(document).ready(function($) {
     }
     
     /**
-     * Process scanned barcode input
+     * Process scanned barcode input with AJAX validation
      */
     function processBarcodeInput(barcode) {
-        console.log('App: Processing barcode:', barcode);
+        console.log('🔍 App: Processing barcode:', barcode);
         
         // Validate barcode format (basic validation)
         if (!validateBarcodeFormat(barcode)) {
+            console.warn('App: Invalid barcode format:', barcode);
             showMessage(`Código de barras inválido: ${barcode}`, 'warning');
             return;
         }
+        console.log('✅ App: Barcode format validation passed');
         
         // Check if table is initialized
         if (!window.discardsTableManager || !window.discardsTableManager.isInitialized()) {
+            console.warn('App: Table manager not initialized');
             showMessage('La tabla no está lista. Seleccione un campo primero.', 'warning');
             return;
         }
+        console.log('✅ App: Table manager is initialized');
         
-        // Check if barcode exists in table
+        // Check if barcode exists in table first
         const existingRecords = window.discardsTableManager.findByBarcode(barcode);
+        console.log('App: Found existing records for barcode:', existingRecords.length);
         
         if (existingRecords.length === 0) {
+            console.warn('App: Barcode not found in current table:', barcode);
             showMessage(`Material ${barcode} no encontrado en la tabla actual`, 'warning');
             return;
         }
+        console.log('✅ App: Barcode exists in table, proceeding with validation');
         
-        // Update row status in table
-        const updated = window.discardsTableManager.updateRowStatus(barcode, '✅');
+        // Show loading message
+        showMessage(`🔄 Validando código de barras: ${barcode}...`, 'info');
         
-        if (updated) {
-            showMessage(`✅ Material ${barcode} marcado como descartado`, 'success');
-            
-            // Show statistics
-            const stats = window.discardsTableManager.getStatistics();
-            console.log('App: Current statistics:', stats);
-            
-            // Focus back to scanner
-            setTimeout(function() {
-                $('#scanner-input').focus();
-            }, 100);
-            
-        } else {
-            showMessage(`Error al actualizar el estado del material ${barcode}`, 'error');
+        // Check if Factory is available
+        if (!window.Factory || typeof window.Factory.BuildAjaxParamToValidateBarcode !== 'function') {
+            console.error('App: Factory or BuildAjaxParamToValidateBarcode function not available');
+            showMessage('Error: Factory de parámetros AJAX no disponible', 'error');
+            return;
         }
+        console.log('✅ App: Factory is available');
+        
+        // Build AJAX parameters for barcode validation
+        console.log('App: Building AJAX params with:', { site, year, recordType: 'orion-discard', barcode });
+        const ajaxParam = window.Factory.BuildAjaxParamToValidateBarcode(
+            site,
+            year,
+            'orion-discard',
+            barcode
+        );
+        
+        if (!ajaxParam) {
+            console.error('App: Failed to build AJAX parameters');
+            showMessage('Error: No se pudieron generar los parámetros AJAX', 'error');
+            return;
+        }
+        
+        console.log('✅ App: AJAX parameters built successfully:', ajaxParam);
+        
+        // Check if AJAX function is available
+        if (!window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode) {
+            console.error('App: AJAX validation function not available');
+            showMessage('Error: Función de validación AJAX no disponible', 'error');
+            return;
+        }
+        console.log('✅ App: AJAX validation function is available');
+        
+        // Call AJAX function to validate and mark barcode as discarded
+        console.log('🚀 App: Calling AJAX validation function...');
+        window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode(
+            ajaxParam,
+            window.HTTP_METHODS.POST,
+            // Success callback
+            function(response) {
+                console.log('✅ App: Barcode validation successful:', response);
+                
+                // Update row status in table to show checkmark
+                const updated = window.discardsTableManager.updateRowStatus(barcode, '✅');
+                
+                if (updated) {
+                    showMessage(`✅ Material ${barcode} marcado como descartado exitosamente`, 'success');
+                    
+                    // Show statistics
+                    const stats = window.discardsTableManager.getStatistics();
+                    console.log('App: Current statistics:', stats);
+                    
+                    // Focus back to scanner
+                    setTimeout(function() {
+                        const $scanner = getElement('scanner');
+                        if ($scanner) {
+                            $scanner.focus();
+                        }
+                    }, 500);
+                    
+                } else {
+                    console.warn('App: Failed to update row status in table');
+                    showMessage(`Error al actualizar el estado visual del material ${barcode}`, 'warning');
+                }
+            },
+            // Error callback
+            function(errorMessage) {
+                console.error('❌ App: Barcode validation failed:', errorMessage);
+                
+                if (errorMessage.includes('already discarded')) {
+                    showMessage(`⚠️ Material ${barcode} ya fue descartado anteriormente`, 'warning');
+                } else if (errorMessage.includes('not found')) {
+                    showMessage(`❌ Material ${barcode} no encontrado en el sistema`, 'error');
+                } else {
+                    showMessage(`Error al validar código: ${errorMessage}`, 'error');
+                }
+            },
+            // Complete callback
+            function() {
+                console.log('🏁 App: Barcode validation request completed');
+            }
+        );
     }
     
     /**
@@ -983,7 +1074,26 @@ jQuery(document).ready(function($) {
         
         // Utility functions
         clearTable: clearTable,
-        validateBarcodeFormat: validateBarcodeFormat
+        validateBarcodeFormat: validateBarcodeFormat,
+        
+        // Test functions for debugging
+        testBarcodeProcessing: function(testBarcode) {
+            console.log('🧪 Testing barcode processing with:', testBarcode);
+            processBarcodeInput(testBarcode || 'TEST123');
+        },
+        
+        testAjaxFunction: function() {
+            console.log('🧪 Testing AJAX function availability:');
+            console.log('Factory available:', typeof window.Factory !== 'undefined');
+            console.log('BuildAjaxParamToValidateBarcode available:', typeof window.Factory?.BuildAjaxParamToValidateBarcode === 'function');
+            console.log('AJAX function available:', typeof window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode === 'function');
+            console.log('HTTP_METHODS available:', typeof window.HTTP_METHODS !== 'undefined');
+            
+            if (window.Factory && window.Factory.BuildAjaxParamToValidateBarcode) {
+                const testParams = window.Factory.BuildAjaxParamToValidateBarcode(site, year, 'orion-discard', 'TEST123');
+                console.log('Test AJAX params:', testParams);
+            }
+        }
     };
     
     console.log('App: Global exports configured');

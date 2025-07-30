@@ -212,45 +212,46 @@ jQuery(document).ready(function ($) {
     onComplete
   ) {
     // Validar parámetros requeridos
-    if (!ajaxParam.recordType || !ajaxParam.site || !ajaxParam.year) {
+    if (!ajaxParam.vform_record_type || !ajaxParam.vdata_site || !ajaxParam.vdata_year || !ajaxParam.barcode_Read) {
+      console.error('Ajax: Missing required parameters for barcode validation:', ajaxParam);
       if (typeof onError === "function") {
-        onError("Parámetros requeridos faltantes");
+        onError("Parámetros requeridos faltantes: vform_record_type, vdata_site, vdata_year, barcode_Read");
       }
-
       return;
     }
 
-    // Mostrar indicador de carga
-    if (typeof window.showCSVLoadingIndicator === "function") {
-      window.showCSVLoadingIndicator(true);
-    }  
+    console.log('Ajax: Validating barcode with parameters:', ajaxParam);
 
     $.ajax({
       url: orionDiscard.ajaxUrl,
-      method: method, // ✅ Cambiar de GET a POST para WordPress AJAX
-      data: ajaxParam, // ✅ CORREGIDO: era ajaxParams, ahora es ajaxParam
+      method: method, // POST para WordPress AJAX
+      data: ajaxParam,
       dataType: RESPONSE_TYPES.JSON,
       success: function (response) {
+        console.log('Ajax: Barcode validation response:', response);
+        
         if (response.success && response.data) {
-          onSuccess(response.data);
+          if (typeof onSuccess === "function") {
+            onSuccess(response.data);
+          }
         } else {
+          console.error('Ajax: Barcode validation failed:', response);
           if (typeof onError === "function") {
-            onError(response.message || "Error al obtener datos CSV");
+            onError(response.data?.message || response.message || "Error al validar código de barras");
           }
         }
       },
       error: function (xhr, status, error) {
+        console.error('Ajax: Barcode validation AJAX error:', xhr.responseText, status, error);
         if (typeof onError === "function") {
-          onError("Error de conexión al obtener datos CSV");
+          onError("Error de conexión al validar código de barras: " + error);
         }
       },
       complete: function () {
-
+        console.log('Ajax: Barcode validation request completed');
         if( typeof onComplete === "function") {
-            onComplete("Finished loading vForm record type data");
-            }
-
-      
+            onComplete("Barcode validation request finished");
+        }
       },
     });
   }
