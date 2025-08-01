@@ -1,5 +1,272 @@
 /* Orion Discard Plugin Styles */
 
+/* ========================================================================== */
+/*   TOOLBAR AND LAYOUT FIXES                                                */
+/* ========================================================================== */
+
+/* Fix toolbar layout issues - prevent overflow and maintain proper spacing */
+#kt_toolbar,
+.toolbar {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure toolbar container respects boundaries */
+#kt_toolbar .d-flex {
+    flex-wrap: wrap !important;
+    align-items: center !important;
+}
+
+/* Fix page title container to prevent overflow */
+#kt_toolbar .page-title {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+/* Ensure breadcrumb doesn't break layout */
+#kt_toolbar .breadcrumb {
+    flex-wrap: wrap !important;
+    margin-bottom: 0 !important;
+}
+
+/* Fix action buttons container */
+#kt_toolbar #actionTab {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+}
+
+/* Responsive toolbar adjustments */
+@media (max-width: 768px) {
+    #kt_toolbar {
+        padding: 1rem !important;
+    }
+    
+    #kt_toolbar .page-title h1 {
+        font-size: 1.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    #kt_toolbar .breadcrumb {
+        font-size: 0.85rem !important;
+    }
+    
+    #kt_toolbar #actionTab {
+        margin-top: 0.5rem !important;
+        width: 100% !important;
+        justify-content: center !important;
+    }
+}
+
+@media (max-width: 576px) {
+    #kt_toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    #kt_toolbar .page-title,
+    #kt_toolbar #actionTab {
+        width: 100% !important;
+        text-align: center !important;
+    }
+}
+
+/* ========================================================================== */
+/*   CONTAINER AND LAYOUT IMPROVEMENTS                                       */
+/* ========================================================================== */
+
+/* Ensure main content container doesn't interfere with toolbar */
+.orion-discard-container,
+.orion-discard-admin-form {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+/* Prevent table styles from affecting page layout */
+#discards-table-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    margin-top: 2rem !important;
+    box-sizing: border-box !important;
+}
+
+/* Fix DataTables wrapper to prevent layout issues */
+.dataTables_wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure no global CSS rules interfere with Bootstrap grid */
+.d-flex {
+    display: flex !important;
+}
+
+.flex-stack {
+    justify-content: space-between !important;
+}
+
+.flex-wrap {
+    flex-wrap: wrap !important;
+}
+
+.py-4 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+/* Ensure form doesn't interfere with toolbar */
+.orion-discard-admin-form form {
+    margin-top: 2rem !important;
+    width: 100% !important;
+}
+
+/* ========================================================================== */
+/*   OVERFLOW AND SIZING FIXES                                               */
+/* ========================================================================== */
+
+/* Global fixes to prevent elements from breaking out of containers */
+* {
+    box-sizing: border-box !important;
+}
+
+/* Prevent any element from creating horizontal scroll */
+body {
+    overflow-x: hidden !important;
+}
+
+/* Fix for elements that might overflow the main content area */
+.content, 
+.main-content, 
+.page-content,
+.container,
+.container-fluid {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* Ensure toolbar components stay within bounds */
+.toolbar .btn,
+.toolbar .button,
+#actionTab .btn {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Fix button sizing in toolbar */
+#actionTab .btn {
+    max-width: 100px !important;
+    font-size: 0.875rem !important;
+}
+
+/* Ensure menu dropdowns don't overflow */
+.menu, 
+.dropdown-menu {
+    max-width: 200px !important;
+    word-wrap: break-word !important;
+}
+
+/* Fix for wide tables */
+#discards-table {
+    table-layout: auto !important;
+    word-wrap: break-word !important;
+    max-width: 100% !important;
+}
+
+/* Responsive text handling */
+@media (max-width: 992px) {
+    .toolbar h1 {
+        font-size: 1.25rem !important;
+        word-wrap: break-word !important;
+    }
+    
+    .breadcrumb-item {
+        font-size: 0.8rem !important;
+    }
+    
+    #actionTab .btn span {
+        font-size: 0.75rem !important;
+    }
+}
+
+/* ========================================================================== */
+/*   THEME INTEGRATION AND COMPATIBILITY                                     */
+/* ========================================================================== */
+
+/* Ensure our plugin styles don't interfere with theme styles */
+.orion-discard-plugin {
+    isolation: isolate !important;
+}
+
+/* Reset any potential conflicting margins/paddings */
+#kt_toolbar * {
+    margin: inherit !important;
+    padding: inherit !important;
+}
+
+/* Preserve theme button styles */
+#kt_toolbar .btn:not(.orion-btn) {
+    all: revert !important;
+}
+
+/* Ensure SVG icons in toolbar maintain proper sizing */
+#kt_toolbar .svg-icon {
+    width: 24px !important;
+    height: 24px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Fix potential z-index issues */
+#kt_toolbar {
+    position: relative !important;
+    z-index: auto !important;
+}
+
+#kt_toolbar .menu {
+    z-index: 1050 !important;
+}
+
+/* Ensure proper spacing between toolbar elements */
+#kt_toolbar .page-title {
+    margin-right: 1rem !important;
+}
+
+#kt_toolbar .page-center-header {
+    margin: 0 auto !important;
+}
+
+/* Fix for action button container */
+#kt_toolbar #actionTab {
+    margin-left: 1rem !important;
+}
+
+/* Ensure breadcrumb links are properly styled */
+#kt_toolbar .breadcrumb-item a {
+    text-decoration: none !important;
+    color: inherit !important;
+}
+
+#kt_toolbar .breadcrumb-item a:hover {
+    text-decoration: underline !important;
+}
+
+/* Prevent plugin styles from affecting theme components */
+.orion-discard-admin-form table:not(#discards-table) {
+    all: revert !important;
+}
+
 /* Pre-Discarded Materials Styling */
 .row-pre-discarded {
     background-color: #f8f9fa !important;

@@ -105,7 +105,7 @@ jQuery(document).ready(function($) {
                 autoWidth: false, // Better control over column widths
                 fixedHeader: false,
                 ordering: true, // Enable sorting functionality
-                order: [[0, 'asc']], // Default sort by first column
+                order: [[0, 'desc']], // Default sort by status column (completed first)
                 columnDefs: [
                     {
                         targets: '_all',
@@ -267,6 +267,12 @@ jQuery(document).ready(function($) {
                 
                 return `<span class="${cssClass}${preDiscardedClass}" title="${title}" data-post-id="${row.post_id || row.id}" data-pre-discarded="${isPreDiscarded}">${icon}</span>`;
             }
+            
+            // For sorting: return a value that sorts pending (❌) before completed (✅)
+            if (type === 'type' || type === 'sort') {
+                return data === '✅' ? 1 : 0; // ❌ (0) sorts before ✅ (1)
+            }
+            
             return data;
         }
         
