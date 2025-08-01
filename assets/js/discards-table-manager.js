@@ -346,15 +346,16 @@ jQuery(document).ready(function($) {
             
             // Build indexes from current data
             if (this.table) {
+                const self = this; // Store reference to class instance
                 this.table.rows().every(function() {
                     const data = this.data();
                     const postId = data.post_id || data.id;
                     const barcode = data.barcd;
                     
                     if (postId) {
-                        window.discardsTableManager.postIdIndex.set(String(postId), data);
+                        self.postIdIndex.set(String(postId), data);
                         if (barcode) {
-                            window.discardsTableManager.barcodeIndex.set(String(barcode), postId);
+                            self.barcodeIndex.set(String(barcode), postId);
                         }
                     }
                 });
@@ -405,40 +406,85 @@ jQuery(document).ready(function($) {
          * @returns {boolean} Success status
          */
         updateTableData(data) {
+            console.log('🚀 Table Manager: ===== STARTING updateTableData =====');
+            console.log('Table Manager: updateTableData called with data:', data?.length || 0, 'records');
+            console.log('Table Manager: Initialization status:', this.isInitialized());
+            console.log('Table Manager: Data type check:', Array.isArray(data), typeof data);
+            
+            // Basic validation checks
             if (!this.isInitialized()) {
-                console.error('Table Manager: Not initialized for data update');
+                console.error('❌ Table Manager: Not initialized for data update');
+                console.error('Table Manager: isReady:', this.isReady, 'table:', this.table !== null);
                 return false;
             }
             
             if (!Array.isArray(data)) {
-                console.error('Table Manager: Data must be an array');
+                console.error('❌ Table Manager: Data must be an array, received:', typeof data);
+                console.error('Table Manager: Data sample:', data);
                 return false;
             }
             
+            if (data.length === 0) {
+                console.warn('Table Manager: Empty data array received');
+                try {
+                    this.table.clear().draw();
+                    this.clearIndexes();
+                    console.log('Table Manager: Table cleared for empty data');
+                    return true;
+                } catch (error) {
+                    console.error('Table Manager: Error clearing table for empty data:', error);
+                    return false;
+                }
+            }
+            
             try {
-                console.log('Table Manager: Updating with', data.length, 'records');
+                console.log('Table Manager: Starting data update...');
+                console.log('Table Manager: About to normalize data...');
                 
-                // Normalize data with enhanced post_id handling
+                // Normalize data
                 const normalizedData = this.normalizeTableData(data);
+                console.log('🔍 Table Manager: normalizeTableData returned:', normalizedData?.length, 'records');
                 
-                // Clear existing data and indexes
-                this.clearIndexes();
+                if (!normalizedData || normalizedData.length === 0) {
+                    console.error('❌ Table Manager: Data normalization failed');
+                    console.error('Table Manager: normalizedData is null/undefined:', normalizedData === null || normalizedData === undefined);
+                    console.error('Table Manager: normalizedData length is 0:', normalizedData?.length === 0);
+                    console.error('Table Manager: Original data length:', data.length);
+                    return false;
+                }
                 
-                // Update table data
-                this.table.clear().rows.add(normalizedData).draw();
+                console.log('Table Manager: About to clear and update table...');
                 
-                // Rebuild indexes for fast lookups
+                // Clear and update table
+                this.table.clear();
+                this.table.rows.add(normalizedData);
+                this.table.draw();
+                
+                console.log('Table Manager: Table operations completed, rebuilding indexes...');
+                
+                // Rebuild indexes
                 this.initializeIndexes();
                 
-                // Update statistics
+                // Update stats
                 this.stats.updateCount++;
                 this.stats.lastUpdate = new Date();
                 
-                console.log('Table Manager: Updated successfully with', normalizedData.length, 'records');
+                console.log('✅ Table Manager: Update completed successfully with', normalizedData.length, 'records');
+                console.log('🏁 Table Manager: ===== ENDING updateTableData SUCCESS =====');
                 return true;
                 
             } catch (error) {
-                console.error('Table Manager: Error updating data:', error);
+                console.error('❌ Table Manager: Error updating data:', error);
+                console.error('🏁 Table Manager: ===== ENDING updateTableData ERROR =====');
+                
+                // Try to recover
+                try {
+                    this.table.clear().draw();
+                    this.clearIndexes();
+                } catch (recoveryError) {
+                    console.error('Table Manager: Recovery failed:', recoveryError);
+                }
+                
                 return false;
             }
         }
@@ -447,36 +493,144 @@ jQuery(document).ready(function($) {
          * Normalize table data with enhanced post_id preservation and pre-discarded handling
          */
         normalizeTableData(data) {
-            return data.map((row, index) => {
-                // Enhanced post_id handling - preserve original post_id
-                const postId = row.post_id || row.id || row.record_id || `row_${Date.now()}_${index}`;
+            if (!Array.isArray(data)) {
+                console.error('Table Manager: normalizeTableData - data is not an array');
+                console.error('Table Manager: Received data type:', typeof data, data);
+                return [];
+            }
+            
+            console.log('Table Manager: Normalizing', data.length, 'records');
+            console.log('Table Manager: Sample data for normalization:', data.slice(0, 2));
+            
+            try {
+                console.log('🔄 Table Manager: Starting data.map() normalization...');
+                const normalizedData = data.map((row, index) => {
+                    try {
+                        // Validate row
+                        if (!row || typeof row !== 'object') {
+                            console.warn(`Table Manager: Invalid row at index ${index}:`, row);
+                            return this.createDefaultRow(index);
+                        }
+                        
+                        // Enhanced post_id handling - preserve original post_id
+                        const postId = row.post_id || row.id || row.record_id || `row_${Date.now()}_${index}`;
+                        
+                        // IMPORTANT: Handle pre-discarded materials
+                        // If isDiscarded is true, set status to ✅ immediately
+                        const isAlreadyDiscarded = row.isDiscarded === true || row.isDiscarded === 'true' || row.isDiscarded === 1;
+                        const recordStatus = isAlreadyDiscarded ? '✅' : (row.status || '❌');
+                        
+                        // Create normalized record with safe string conversion
+                        const normalizedRow = {
+                            // Primary identifiers
+                            id: String(postId || `row_${index}`),
+                            post_id: String(row.post_id || postId), // Always preserve post_id
+                            
+                            // Status and core fields - handle pre-discarded materials
+                            status: String(recordStatus), // Set ✅ for already discarded materials
+                            field: this.safeString(row.field),
+                            range_val: this.safeString(row.range_val || row.range),
+                            row_val: this.safeString(row.row_val || row.row),
+                            plot_id: this.safeString(row.plot_id),
+                            subplot_id: this.safeString(row.subplot_id),
+                            matid: this.safeString(row.matid),
+                            barcd: this.safeString(row.barcd || row.barcode),
+                            
+                            // Additional metadata
+                            isDiscarded: Boolean(isAlreadyDiscarded), // Preserve discarded state
+                            _originalData: this.config.enableCache ? row : null,
+                            _wasPreDiscarded: Boolean(isAlreadyDiscarded) // Flag for pre-discarded materials
+                        };
+                        
+                        // Validate normalized row
+                        if (!normalizedRow.id || !normalizedRow.post_id) {
+                            console.warn(`Table Manager: Row ${index} missing required identifiers`, normalizedRow);
+                            normalizedRow.id = normalizedRow.id || `fallback_${index}`;
+                            normalizedRow.post_id = normalizedRow.post_id || normalizedRow.id;
+                        }
+                        
+                        return normalizedRow;
+                    } catch (rowError) {
+                        console.error(`❌ Table Manager: Error processing row ${index}:`, rowError);
+                        console.error(`Table Manager: Problematic row data:`, row);
+                        return this.createDefaultRow(index);
+                    }
+                });
                 
-                // IMPORTANT: Handle pre-discarded materials
-                // If isDiscarded is true, set status to ✅ immediately
-                const isAlreadyDiscarded = row.isDiscarded === true || row.isDiscarded === 'true' || row.isDiscarded === 1;
-                const recordStatus = isAlreadyDiscarded ? '✅' : (row.status || '❌');
+                console.log('✅ Table Manager: data.map() completed, got', normalizedData.length, 'records');
+                console.log('Table Manager: Normalization completed successfully');
+                console.log('Table Manager: Returning', normalizedData.length, 'normalized records');
+                return normalizedData;
                 
-                return {
-                    // Primary identifiers
-                    id: postId,
-                    post_id: row.post_id || postId, // Always preserve post_id
-                    
-                    // Status and core fields - handle pre-discarded materials
-                    status: recordStatus, // Set ✅ for already discarded materials
-                    field: String(row.field || '').trim(),
-                    range_val: String(row.range_val || row.range || '').trim(),
-                    row_val: String(row.row_val || row.row || '').trim(),
-                    plot_id: String(row.plot_id || '').trim(),
-                    subplot_id: String(row.subplot_id || '').trim(),
-                    matid: String(row.matid || '').trim(),
-                    barcd: String(row.barcd || row.barcode || '').trim(),
-                    
-                    // Additional metadata
-                    isDiscarded: isAlreadyDiscarded, // Preserve discarded state
-                    _originalData: this.config.enableCache ? row : null,
-                    _wasPreDiscarded: isAlreadyDiscarded // Flag for pre-discarded materials
+            } catch (error) {
+                console.error('❌ Table Manager: CRITICAL - Error in normalizeTableData:', error);
+                console.error('Table Manager: Error type:', error.name);
+                console.error('Table Manager: Error message:', error.message);
+                console.error('Table Manager: Error stack:', error.stack);
+                console.error('Table Manager: Data length at error:', data?.length);
+                console.error('Table Manager: First 3 data items:', data?.slice(0, 3));
+                console.error('🚨 Table Manager: Returning empty array due to error');
+                return [];
+            }
+        }
+        
+        /**
+         * Safely convert value to string
+         */
+        safeString(value) {
+            try {
+                if (value === null || value === undefined) return '';
+                if (typeof value === 'string') return value.trim();
+                if (typeof value === 'number') return String(value);
+                if (typeof value === 'boolean') return String(value);
+                return String(value).trim();
+            } catch (error) {
+                console.warn('Table Manager: safeString conversion error for value:', value, error);
+                return '';
+            }
+        }
+        
+        /**
+         * Create a default row for invalid data
+         */
+        createDefaultRow(index) {
+            try {
+                const timestamp = Date.now();
+                const defaultRow = {
+                    id: `default_${timestamp}_${index}`,
+                    post_id: `default_${timestamp}_${index}`,
+                    status: '❌',
+                    field: '',
+                    range_val: '',
+                    row_val: '',
+                    plot_id: '',
+                    subplot_id: '',
+                    matid: '',
+                    barcd: '',
+                    isDiscarded: false,
+                    _originalData: null,
+                    _wasPreDiscarded: false
                 };
-            });
+                console.log('Table Manager: Created default row for index', index);
+                return defaultRow;
+            } catch (error) {
+                console.error('Table Manager: Error creating default row:', error);
+                return {
+                    id: `fallback_${index}`,
+                    post_id: `fallback_${index}`,
+                    status: '❌',
+                    field: '',
+                    range_val: '',
+                    row_val: '',
+                    plot_id: '',
+                    subplot_id: '',
+                    matid: '',
+                    barcd: '',
+                    isDiscarded: false,
+                    _originalData: null,
+                    _wasPreDiscarded: false
+                };
+            }
         }
         
         /**
@@ -949,20 +1103,67 @@ jQuery(document).ready(function($) {
     // Export public API to global scope
     window.discardsTableManager = tableManager.getPublicAPI();
     
-    console.log('Table Manager: Optimized module loaded and ready for initialization');
+    console.log('✅ Table Manager: Optimized module loaded and ready for initialization');
+    console.log('🔗 Table Manager: API exported to window.discardsTableManager:', !!window.discardsTableManager);
+    console.log('🔗 Table Manager: updateTableData method available:', typeof window.discardsTableManager?.updateTableData === 'function');
     
-    // Auto-initialize if table element is present
-    setTimeout(() => {
-        if ($('#discards-table').length > 0) {
-            console.log('Table Manager: Auto-initializing...');
-            window.discardsTableManager.init().then(success => {
-                if (success) {
-                    console.log('Table Manager: Auto-initialization successful');
-                } else {
-                    console.warn('Table Manager: Auto-initialization failed');
-                }
-            });
+    // Enhanced auto-initialization with retry mechanism
+    const attemptInitialization = async (attempt = 1, maxAttempts = 5) => {
+        console.log(`Table Manager: Initialization attempt ${attempt}/${maxAttempts}`);
+        
+        // Check if table element exists
+        if ($('#discards-table').length === 0) {
+            console.log('Table Manager: Table element not found, waiting...');
+            if (attempt < maxAttempts) {
+                setTimeout(() => attemptInitialization(attempt + 1, maxAttempts), 1000);
+            } else {
+                console.warn('Table Manager: Table element not found after', maxAttempts, 'attempts');
+            }
+            return;
         }
-    }, 500);
+        
+        // Check if DataTables is available
+        if (!$.fn.DataTable) {
+            console.log('Table Manager: DataTables not available, waiting...');
+            if (attempt < maxAttempts) {
+                setTimeout(() => attemptInitialization(attempt + 1, maxAttempts), 1000);
+            } else {
+                console.error('Table Manager: DataTables not available after', maxAttempts, 'attempts');
+            }
+            return;
+        }
+        
+        // Attempt initialization
+        try {
+            console.log('Table Manager: Starting initialization...');
+            const success = await window.discardsTableManager.init();
+            
+            if (success) {
+                console.log('✅ Table Manager: Initialization successful');
+            } else {
+                console.warn('⚠️ Table Manager: Initialization failed');
+                
+                // Retry if not successful and attempts remaining
+                if (attempt < maxAttempts) {
+                    console.log('Table Manager: Retrying initialization in 1 second...');
+                    setTimeout(() => attemptInitialization(attempt + 1, maxAttempts), 1000);
+                } else {
+                    console.error('❌ Table Manager: All initialization attempts failed');
+                }
+            }
+        } catch (error) {
+            console.error('Table Manager: Initialization error:', error);
+            
+            if (attempt < maxAttempts) {
+                console.log('Table Manager: Retrying after error in 1 second...');
+                setTimeout(() => attemptInitialization(attempt + 1, maxAttempts), 1000);
+            } else {
+                console.error('❌ Table Manager: All initialization attempts failed due to errors');
+            }
+        }
+    };
+    
+    // Start auto-initialization
+    setTimeout(() => attemptInitialization(), 500);
     
 });

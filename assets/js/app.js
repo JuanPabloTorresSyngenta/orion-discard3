@@ -27,8 +27,8 @@ jQuery(document).ready(function($) {
         maxInitAttempts: 10,
         retryDelay: 200,
         messageTimeouts: {
-            error: 8000,
-            default: 5000
+            error: 3000,
+            default: 3000
         }
     };
     

@@ -497,21 +497,42 @@ jQuery(document).ready(function($) {
     
         
         /**
-         * Update table with processed data efficiently
+         * Update table with processed data - simplified version
          */
         async updateTableWithData(data, fieldName) {
             console.log('CSV Handler: Updating table with', data.length, 'processed records');
             
-            // Verify table manager availability
+            // Simple verification
             if (!this.verifyTableManager()) {
-                throw new Error('Gestor de tabla no disponible');
+                throw new Error('Gestor de tabla no disponible o no inicializado');
             }
             
             try {
-                // Update table via centralized manager
+                // Basic validation
+                if (!Array.isArray(data)) {
+                    throw new Error('Los datos procesados no están en formato de array');
+                }
+                
+                if (data.length === 0) {
+                    console.warn('CSV Handler: No data to update table with');
+                    return true;
+                }
+                
+                // Call table manager directly
+                console.log('CSV Handler: Calling table manager updateTableData...');
+                console.log('CSV Handler: Data being sent to table manager:', {
+                    length: data.length,
+                    sample: data.slice(0, 2),
+                    dataType: typeof data,
+                    isArray: Array.isArray(data)
+                });
+                
                 const updateResult = window.discardsTableManager.updateTableData(data);
+                console.log('CSV Handler: Table manager updateTableData result:', updateResult);
                 
                 if (!updateResult) {
+                    console.error('CSV Handler: Table manager returned false');
+                    console.error('CSV Handler: Data that failed:', data);
                     throw new Error('La actualización de la tabla falló');
                 }
                 
@@ -527,19 +548,30 @@ jQuery(document).ready(function($) {
         }
         
         /**
-         * Verify table manager availability and state
+         * Verify table manager availability - simplified version
          */
         verifyTableManager() {
+            console.log('CSV Handler: Verifying table manager...');
+            
+            // Check basic availability
             if (!window.discardsTableManager) {
                 console.error('CSV Handler: Table manager not available');
                 return false;
             }
             
+            // Check if initialized
             if (!window.discardsTableManager.isInitialized()) {
                 console.error('CSV Handler: Table manager not initialized');
                 return false;
             }
             
+            // Check required methods
+            if (typeof window.discardsTableManager.updateTableData !== 'function') {
+                console.error('CSV Handler: updateTableData method not available');
+                return false;
+            }
+            
+            console.log('CSV Handler: Table manager verification passed');
             return true;
         }
         
@@ -662,7 +694,7 @@ jQuery(document).ready(function($) {
     
         
         /**
-         * Show/hide optimized loading indicator
+         * Show/hide optimized loading indicator inside the table
          */
         showLoadingIndicator(show) {
             const loadingId = 'csv-loading-indicator';
@@ -671,44 +703,79 @@ jQuery(document).ready(function($) {
                 // Remove existing indicator
                 $('#' + loadingId).remove();
                 
-                // Create optimized loading indicator
-                const $loading = $(`
-                    <div id="${loadingId}" class="csv-loading" style="
-                        text-align: center; 
-                        padding: 15px; 
-                        background: linear-gradient(90deg, #f8f9fa, #e9ecef);
-                        border: 2px solid #28a745; 
-                        border-radius: 6px;
-                        margin: 10px 0; 
-                        animation: cssload-pulse 1.5s infinite;
-                    ">
-                        <div style="font-size: 16px; color: #155724; font-weight: 600;">
-                            🔄 Cargando datos...
-                        </div>
-                        <div style="font-size: 12px; color: #6c757d; margin-top: 3px;">
-                            Procesando registros
-                        </div>
-                    </div>
+                // Check if table exists and has tbody
+                const $table = $('#discards-table');
+                if ($table.length === 0) {
+                    console.warn('CSV Handler: Table not found for loading indicator');
+                    return;
+                }
+                
+                // Get or create tbody
+                let $tbody = $table.find('tbody');
+                if ($tbody.length === 0) {
+                    $tbody = $('<tbody></tbody>').appendTo($table);
+                }
+                
+                // Count visible columns for colspan
+                const visibleColumns = $table.find('thead th:visible').length || 7; // Default to 7 visible columns
+                
+                // Create loading row that fits inside the table
+                const $loadingRow = $(`
+                    <tr id="${loadingId}" class="csv-loading-row">
+                        <td colspan="${visibleColumns}" style="
+                            text-align: center; 
+                            padding: 30px 15px; 
+                            background: linear-gradient(90deg, #f8f9fa, #e9ecef);
+                            border: 2px solid #28a745; 
+                            border-radius: 6px;
+                            animation: cssload-pulse 1.5s infinite;
+                            vertical-align: middle;
+                        ">
+                            <div style="font-size: 18px; color: #155724; font-weight: 600; margin-bottom: 8px;">
+                                🔄 Cargando datos...
+                            </div>
+                            <div style="font-size: 14px; color: #6c757d;">
+                                Procesando registros del campo seleccionado
+                            </div>
+                        </td>
+                    </tr>
                 `);
                 
-                $('#discards-table').before($loading);
+                // Clear existing table content and add loading row
+                $tbody.empty().append($loadingRow);
+
                 this.ensureLoadingStyles();
                 
             } else {
-                $('#' + loadingId).fadeOut(300, function() { $(this).remove(); });
+                // Remove loading indicator with fade effect
+                $('#' + loadingId).fadeOut(300, function() { 
+                    $(this).remove(); 
+                });
             }
         }
         
         /**
-         * Ensure loading styles are present
+         * Ensure loading styles are present for table-based loading
          */
         ensureLoadingStyles() {
             if (!$('#csv-loading-styles').length) {
                 $('head').append(`
                     <style id="csv-loading-styles">
                         @keyframes cssload-pulse {
-                            0%, 100% { opacity: 1; }
-                            50% { opacity: 0.7; }
+                            0%, 100% { opacity: 1; transform: scale(1); }
+                            50% { opacity: 0.8; transform: scale(1.02); }
+                        }
+                        
+                        .csv-loading-row {
+                            background: linear-gradient(90deg, #f8f9fa, #e9ecef) !important;
+                        }
+                        
+                        .csv-loading-row:hover {
+                            background: linear-gradient(90deg, #e9ecef, #dee2e6) !important;
+                        }
+                        
+                        .csv-loading-row td {
+                            border: none !important;
                         }
                     </style>
                 `);
@@ -741,9 +808,9 @@ jQuery(document).ready(function($) {
          */
         showFallbackMessage(message, type) {
             const config = {
-                error: { class: 'alert-danger', icon: '❌', delay: 8000 },
-                success: { class: 'alert-success', icon: '✅', delay: 4000 },
-                warning: { class: 'alert-warning', icon: '⚠️', delay: 6000 },
+                error: { class: 'alert-danger', icon: '❌', delay: 5000 },
+                success: { class: 'alert-success', icon: '✅', delay: 5000 },
+                warning: { class: 'alert-warning', icon: '⚠️', delay: 5000 },
                 info: { class: 'alert-info', icon: 'ℹ️', delay: 5000 }
             };
             
