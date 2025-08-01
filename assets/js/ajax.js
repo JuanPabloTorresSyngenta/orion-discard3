@@ -1,4 +1,44 @@
 jQuery(document).ready(function ($) {
+  // ✅ SECURITY: Only execute on Orion Discard plugin pages
+  if (!isOrionDiscardPage()) {
+    return; // Exit early if not on the correct page
+  }
+
+  /**
+   * Check if we're on an Orion Discard plugin page
+   * Enhanced security verification with multiple layers
+   * @returns {boolean} True if on plugin page
+   */
+  function isOrionDiscardPage() {
+    // PRIMARY CHECKS: Critical plugin elements that MUST exist
+    const criticalChecks = [
+      $('#discards-table').length > 0,                  // Main discards table
+      typeof orionDiscard !== 'undefined' && orionDiscard.ajaxUrl  // Plugin config with AJAX URL
+    ];
+    
+    // SECONDARY CHECKS: Additional validation
+    const secondaryChecks = [
+      $('.orion-discard-admin-form').length > 0,        // Admin form exists  
+      $('[data-orion-discard]').length > 0,             // Plugin data attributes
+      $('body').hasClass('orion-discard-page'),          // Body has plugin class
+      $('.orion-discard-container').length > 0,         // Plugin container exists
+      window.location.href.includes('orion-discard'),   // URL contains plugin name
+      $('[id*="orion-discard"]').length > 0             // Any element with plugin ID
+    ];
+    
+    // STRICT VALIDATION: At least one critical check AND one secondary check must pass
+    const hasCritical = criticalChecks.some(check => check === true);
+    const hasSecondary = secondaryChecks.some(check => check === true);
+    
+    const isValid = hasCritical && hasSecondary;
+    
+    if (!isValid) {
+      console.log('Orion Discard AJAX: Not on plugin page, exiting');
+    }
+    
+    return isValid;
+  }
+
   // ============================================================================
   // HTTP METHODS & RESPONSE TYPES ENUMS
   // ============================================================================

@@ -194,14 +194,41 @@ class OrionDiscardHandler
     }
 
     /**
-     * CORRECTED: Admin assets with same proper order
+     * CORRECTED: Admin assets with same proper order - ONLY ON PLUGIN PAGES
      */
-    public function enqueue_admin_assets()
+    public function enqueue_admin_assets($hook_suffix)
     {
+        // ✅ SECURITY: Only load scripts on specific plugin pages or shortcode pages
+        
+        // Exit early for most admin pages that don't need our scripts
+        $allowed_pages = [
+            'toplevel_page_orion-discard',      // Main plugin page
+            'orion-discard_page_settings',      // Settings subpage  
+            'post.php',                         // Edit post page
+            'post-new.php'                      // New post page
+        ];
+        
+        // Quick exit for pages we definitely don't need
+        if (!in_array($hook_suffix, $allowed_pages)) {
+            return;
+        }
+        
+        // For post edit pages, check if shortcode is present
+        if (in_array($hook_suffix, ['post.php', 'post-new.php'])) {
+            global $post;
+            if (!is_a($post, 'WP_Post')) {
+                return;
+            }
+            
+            // Check if the post contains our shortcode
+            if (!has_shortcode($post->post_content, 'orionDiscardForm')) {
+                return;
+            }
+        }
+
+        // ✅ If we reach this point, we're on a page that needs our scripts
         $user_id = get_current_user_id();
-
         $site = get_user_meta($user_id, 'site', true);
-
         $year = get_user_meta($user_id, 'year', true);
 
         // DataTables

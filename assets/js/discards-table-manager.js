@@ -13,7 +13,47 @@
 jQuery(document).ready(function($) {
     'use strict';
     
-    console.log('Table Manager: Initializing optimized manager');
+    // ✅ SECURITY: Only execute on Orion Discard plugin pages
+    if (!isOrionDiscardPage()) {
+        return; // Exit early if not on the correct page
+    }
+    
+    console.log('Table Manager: Initializing optimized manager for Orion Discard plugin');
+    
+    /**
+     * Check if we're on an Orion Discard plugin page
+     * Enhanced security verification with multiple layers
+     * @returns {boolean} True if on plugin page
+     */
+    function isOrionDiscardPage() {
+        // PRIMARY CHECKS: Critical plugin elements that MUST exist
+        const criticalChecks = [
+            $('#discards-table').length > 0,                  // Main discards table
+            typeof orionDiscard !== 'undefined' && orionDiscard.ajaxUrl  // Plugin config with AJAX URL
+        ];
+        
+        // SECONDARY CHECKS: Additional validation
+        const secondaryChecks = [
+            $('.orion-discard-admin-form').length > 0,        // Admin form exists  
+            $('[data-orion-discard]').length > 0,             // Plugin data attributes
+            $('body').hasClass('orion-discard-page'),          // Body has plugin class
+            $('.orion-discard-container').length > 0,         // Plugin container exists
+            window.location.href.includes('orion-discard'),   // URL contains plugin name
+            $('[id*="orion-discard"]').length > 0             // Any element with plugin ID
+        ];
+        
+        // STRICT VALIDATION: At least one critical check AND one secondary check must pass
+        const hasCritical = criticalChecks.some(check => check === true);
+        const hasSecondary = secondaryChecks.some(check => check === true);
+        
+        const isValid = hasCritical && hasSecondary;
+        
+        if (!isValid) {
+            console.log('Orion Discard Table Manager: Not on plugin page, exiting');
+        }
+        
+        return isValid;
+    }
     
     /**
      * Optimized Discards Table Manager Class
@@ -105,7 +145,7 @@ jQuery(document).ready(function($) {
                 autoWidth: false, // Better control over column widths
                 fixedHeader: false,
                 ordering: true, // Enable sorting functionality
-                order: [[0, 'desc']], // Default sort by status column (completed first)
+                order: [[0, 'asc']], // Default sort by status column (completed first)
                 columnDefs: [
                     {
                         targets: '_all',
@@ -1394,70 +1434,82 @@ jQuery(document).ready(function($) {
     // Create optimized table manager instance
     const tableManager = new DiscardsTableManager();
     
-    // Export public API to global scope
+    // Export public API to global scope ONLY for Orion Discard pages
     window.discardsTableManager = tableManager.getPublicAPI();
     
-    console.log('✅ Table Manager: Optimized module loaded and ready for initialization');
+    console.log('✅ Table Manager: Optimized module loaded for Orion Discard plugin');
     console.log('🔗 Table Manager: API exported to window.discardsTableManager:', !!window.discardsTableManager);
     console.log('🔗 Table Manager: updateTableData method available:', typeof window.discardsTableManager?.updateTableData === 'function');
     
-    // Enhanced auto-initialization with retry mechanism
-    const attemptInitialization = async (attempt = 1, maxAttempts = 5) => {
-        console.log(`Table Manager: Initialization attempt ${attempt}/${maxAttempts}`);
+    // Enhanced auto-initialization with retry mechanism and security checks
+    const attemptInitialization = async (attempt = 1, maxAttempts = 3) => {
+        console.log(`Table Manager: Orion Discard initialization attempt ${attempt}/${maxAttempts}`);
+        
+        // ✅ SECURITY: Double-check we're still on the correct page
+        if (!isOrionDiscardPage()) {
+            console.warn('Table Manager: Not on Orion Discard page, stopping initialization');
+            return;
+        }
         
         // Check if table element exists
         if ($('#discards-table').length === 0) {
-            console.log('Table Manager: Table element not found, waiting...');
+            console.log('Table Manager: Orion Discard table element not found, waiting...');
             if (attempt < maxAttempts) {
                 setTimeout(() => attemptInitialization(attempt + 1, maxAttempts), 1000);
             } else {
-                console.warn('Table Manager: Table element not found after', maxAttempts, 'attempts');
+                console.warn('Table Manager: Orion Discard table element not found after', maxAttempts, 'attempts');
             }
             return;
         }
         
         // Check if DataTables is available
         if (!$.fn.DataTable) {
-            console.log('Table Manager: DataTables not available, waiting...');
+            console.log('Table Manager: DataTables not available for Orion Discard, waiting...');
             if (attempt < maxAttempts) {
                 setTimeout(() => attemptInitialization(attempt + 1, maxAttempts), 1000);
             } else {
-                console.error('Table Manager: DataTables not available after', maxAttempts, 'attempts');
+                console.error('Table Manager: DataTables not available for Orion Discard after', maxAttempts, 'attempts');
             }
             return;
         }
         
         // Attempt initialization
         try {
-            console.log('Table Manager: Starting initialization...');
+            console.log('Table Manager: Starting Orion Discard initialization...');
             const success = await window.discardsTableManager.init();
             
             if (success) {
-                console.log('✅ Table Manager: Initialization successful');
+                console.log('✅ Table Manager: Orion Discard initialization successful');
             } else {
-                console.warn('⚠️ Table Manager: Initialization failed');
+                console.warn('⚠️ Table Manager: Orion Discard initialization failed');
                 
                 // Retry if not successful and attempts remaining
                 if (attempt < maxAttempts) {
-                    console.log('Table Manager: Retrying initialization in 1 second...');
+                    console.log('Table Manager: Retrying Orion Discard initialization in 1 second...');
                     setTimeout(() => attemptInitialization(attempt + 1, maxAttempts), 1000);
                 } else {
-                    console.error('❌ Table Manager: All initialization attempts failed');
+                    console.error('❌ Table Manager: All Orion Discard initialization attempts failed');
                 }
             }
         } catch (error) {
-            console.error('Table Manager: Initialization error:', error);
+            console.error('Table Manager: Orion Discard initialization error:', error);
             
             if (attempt < maxAttempts) {
-                console.log('Table Manager: Retrying after error in 1 second...');
+                console.log('Table Manager: Retrying Orion Discard after error in 1 second...');
                 setTimeout(() => attemptInitialization(attempt + 1, maxAttempts), 1000);
             } else {
-                console.error('❌ Table Manager: All initialization attempts failed due to errors');
+                console.error('❌ Table Manager: All Orion Discard initialization attempts failed due to errors');
             }
         }
     };
     
-    // Start auto-initialization
-    setTimeout(() => attemptInitialization(), 500);
+    // Start auto-initialization with delay and additional security check
+    setTimeout(() => {
+        if (isOrionDiscardPage()) {
+            attemptInitialization();
+        } else {
+            console.log('Table Manager: Page verification failed, not initializing');
+        }
+    }, 500);
     
 });
