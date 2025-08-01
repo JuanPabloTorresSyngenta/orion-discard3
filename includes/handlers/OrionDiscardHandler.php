@@ -308,21 +308,27 @@ class OrionDiscardHandler
             $post_content = json_decode($post->post_content, true);
 
             if (!is_array($post_content)) {
+
                 continue;
+                
             }
 
             // Verificar si el campo coincide
             if (isset($post_content['field']) && $post_content['field'] == $field_selected) {
+
                 $filtered_count++;
 
                 // ✅ CORRECCIÓN: Incluir post_id en los datos para identificar correctamente las filas
                 $post_content['post_id'] = $post->ID;
+
                 $post_content['id'] = $post->ID; // Alias para compatibilidad con table manager
                 
                 // ✅ CORRECCIÓN: Establecer estado inicial basándose en isDiscarded
                 if (!empty($post_content['isDiscarded'])) {
+
                     $post_content['status'] = '✅'; // Ya descartado
                 } else {
+
                     $post_content['status'] = '❌'; // Pendiente de descarte
                 }
                 

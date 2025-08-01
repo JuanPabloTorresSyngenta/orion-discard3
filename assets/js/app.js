@@ -16,16 +16,28 @@ jQuery(document).ready(function($) {
     console.log('App: Starting Orion Discard Plugin');
     
     // ============================================================================
-    // GLOBAL VARIABLES
+    // GLOBAL VARIABLES & CONFIGURATION
     // ============================================================================
     
-    let fieldsData = [];
-    let barcodeValidationTimeout = null;
-    let initializationComplete = false;
+    const config = {
+        site: orionDiscard.site || "PRSA",
+        year: orionDiscard.year || new Date().getFullYear(),
+        apiUrl: "http://192.168.96.84:8080/orion/wp-json/orion-maps-fields/v1/fields",
+        barcodeTimeout: 300,
+        maxInitAttempts: 10,
+        retryDelay: 200,
+        messageTimeouts: {
+            error: 8000,
+            default: 5000
+        }
+    };
     
-    const site = orionDiscard.site || "PRSA";
-    const year = orionDiscard.year || new Date().getFullYear();
-    const apiUrl = "http://192.168.96.84:8080/orion/wp-json/orion-maps-fields/v1/fields";
+    const state = {
+        fieldsData: [],
+        barcodeValidationTimeout: null,
+        initializationComplete: false,
+        cachedElements: null
+    };
     
     // ============================================================================
     // INITIALIZATION SEQUENCE
@@ -50,11 +62,21 @@ jQuery(document).ready(function($) {
                 
                 // Initialize in sequence
                 setupForm();
-                loadDropdownData();
+                
+                // Load dropdown data and handle promise
+                loadDropdownData()
+                    .then(() => {
+                        console.log('App: Dropdown data loaded successfully');
+                    })
+                    .catch((error) => {
+                        console.error('App: Failed to load dropdown data:', error);
+                        showMessage('Error al cargar datos de dropdowns: ' + error.message, 'error');
+                    });
+                    
                 setupEventHandlers();
                 setupBarcodeScanning();
                 
-                initializationComplete = true;
+                state.initializationComplete = true;
                 console.log('App: Initialization complete');
                 showMessage('Sistema de descarte inicializado correctamente', 'success');
                 
@@ -66,85 +88,82 @@ jQuery(document).ready(function($) {
     }
     
     /**
-     * Check basic dependencies
+     * Check basic dependencies with early exit
      */
     function checkBasicDependencies() {
-        // Try multiple selectors for form containers (vForm compatibility)
-        const formContainer = $('#vform-container').length > 0 || 
-                             $('[id*="orion-discard-form"]').length > 0 ||
-                             $('.orion-discard-admin-form').length > 0 ||
-                             $('.vform-container').length > 0;
-        
-        const checks = {
+        const essentialChecks = {
             jQuery: typeof $ !== 'undefined',
             orionDiscard: typeof orionDiscard !== 'undefined',
-            site: !!site,
-            formContainer: formContainer,
-            tableElement: $('#discards-table').length > 0,
+            site: !!config.site,
             factory: typeof window.Factory !== 'undefined',
             ajaxFunction: typeof window.ajax_fetchOrionFieldsData !== 'undefined',
             httpMethods: typeof window.HTTP_METHODS !== 'undefined'
         };
         
-        console.log('App: Basic dependency check:', checks);
+        console.log('App: Essential dependency check:', essentialChecks);
         
-        // More flexible check - only require essential dependencies
-        const essentialChecks = {
-            jQuery: checks.jQuery,
-            orionDiscard: checks.orionDiscard,
-            site: checks.site,
-            factory: checks.factory,
-            ajaxFunction: checks.ajaxFunction,
-            httpMethods: checks.httpMethods
+        const failedChecks = Object.entries(essentialChecks)
+            .filter(([, passed]) => !passed)
+            .map(([name]) => name);
+        
+        if (failedChecks.length > 0) {
+            console.error('App: Essential dependencies failed:', failedChecks);
+            showMessage(`Dependencias esenciales faltantes: ${failedChecks.join(', ')}`, 'error');
+            return false;
+        }
+        
+        // Check optional dependencies
+        const optionalChecks = {
+            formContainer: findAnyFormContainer(),
+            tableElement: $('#discards-table').length > 0
         };
         
-        const allGood = Object.values(essentialChecks).every(check => check);
-        if (!allGood) {
-            console.error('App: Essential dependencies failed:', essentialChecks);
-            
-            // Show specific missing dependencies
-            const missing = Object.keys(essentialChecks).filter(key => !essentialChecks[key]);
-            showMessage(`Dependencias esenciales faltantes: ${missing.join(', ')}`, 'error');
-        }
+        Object.entries(optionalChecks).forEach(([name, exists]) => {
+            if (!exists) {
+                console.warn(`App: Optional dependency missing: ${name}`);
+            }
+        });
         
-        // Warn about optional dependencies
-        if (!checks.formContainer) {
-            console.warn('App: Form container not found - will search for form elements dynamically');
-        }
-        if (!checks.tableElement) {
-            console.warn('App: Table element not found - table features may be limited');
-        }
-        
-        return allGood;
+        return true;
     }
     
     /**
-     * Wait for table manager to be available and initialize it
+     * Find any form container using cached results
+     */
+    function findAnyFormContainer() {
+        const selectors = [
+            '#vform-container',
+            '[id*="orion-discard-form"]',
+            '.orion-discard-admin-form',
+            '.vform-container'
+        ];
+        
+        return selectors.some(selector => $(selector).length > 0);
+    }
+    
+    /**
+     * Wait for table manager with optimized retry logic
      */
     function waitForTableManager(callback) {
         let attempts = 0;
-        const maxAttempts = 10; // Reduced from 50 to 10 attempts
         
         function checkTableManager() {
             attempts++;
             
-            if (attempts > maxAttempts) {
-                console.warn('App: Table manager not available after', maxAttempts, 'attempts - continuing without it');
-                callback(true); // Continue even if table manager fails
+            if (attempts > config.maxInitAttempts) {
+                console.warn('App: Table manager not available after', config.maxInitAttempts, 'attempts - continuing without it');
+                callback(true);
                 return;
             }
             
-            // Check if table manager is available
             if (typeof window.discardsTableManager !== 'undefined') {
-                // Check if table element exists before initializing
                 const $table = $('#discards-table');
                 if ($table.length === 0) {
                     console.warn('App: No table element found - skipping table manager initialization');
-                    callback(true); // Continue without table
+                    callback(true);
                     return;
                 }
                 
-                // Try to initialize it
                 if (!window.discardsTableManager.isInitialized()) {
                     console.log('App: Initializing table manager');
                     try {
@@ -153,13 +172,11 @@ jQuery(document).ready(function($) {
                             console.log('App: Table manager initialized successfully');
                             callback(true);
                             return;
-                        } else {
-                            console.warn('App: Table manager initialization failed, retrying...');
                         }
+                        console.warn('App: Table manager initialization failed, retrying...');
                     } catch (error) {
                         console.error('App: Table manager initialization error:', error);
-                        console.warn('App: Continuing without table manager');
-                        callback(true); // Continue even if initialization fails
+                        callback(true);
                         return;
                     }
                 } else {
@@ -169,8 +186,7 @@ jQuery(document).ready(function($) {
                 }
             }
             
-            // Retry after delay
-            setTimeout(checkTableManager, 200); // Increased delay
+            setTimeout(checkTableManager, config.retryDelay);
         }
         
         checkTableManager();
@@ -181,18 +197,17 @@ jQuery(document).ready(function($) {
     // ============================================================================
     
     /**
-     * Find form elements with flexible selectors (vForm compatibility)
+     * Find form elements with caching and flexible selectors
      */
     function findFormElements() {
-        const elements = {
-            farms: null,
-            sections: null,
-            fields: null,
-            scanner: null,
-            container: null
-        };
+        // Return cached elements if available and still valid
+        if (state.cachedElements && validateCachedElements()) {
+            console.log('App: Using cached form elements');
+            return state.cachedElements;
+        }
         
-        // Try multiple selector patterns for each element
+        console.log('App: Discovering form elements...');
+        
         const selectors = {
             farms: ['#farms', '[name="farms"]', 'select[name*="farm"]', 'select[id*="farm"]'],
             sections: ['#sections', '[name="sections"]', 'select[name*="section"]', 'select[id*="section"]'],
@@ -201,94 +216,129 @@ jQuery(document).ready(function($) {
             container: ['#vform-container', '.vform-container', '.orion-discard-admin-form', '[id*="orion-discard-form"]']
         };
         
-        for (const [key, selectorArray] of Object.entries(selectors)) {
-            for (const selector of selectorArray) {
-                const $element = $(selector);
-                if ($element.length > 0) {
-                    elements[key] = $element;
-                    console.log(`App: Found ${key} element with selector: ${selector}`);
-                    break;
-                }
-            }
-            
-            if (!elements[key]) {
-                console.warn(`App: Could not find ${key} element with any selector:`, selectorArray);
-            }
-        }
+        const elements = {};
+        
+        Object.entries(selectors).forEach(([key, selectorArray]) => {
+            elements[key] = findElementBySelectors(selectorArray, key);
+        });
+        
+        // Cache the results
+        state.cachedElements = elements;
         
         return elements;
     }
     
     /**
-     * Get or find specific element
+     * Find element using array of selectors
      */
-    function getElement(type) {
-        if (!window.appElements) {
-            window.appElements = findFormElements();
+    function findElementBySelectors(selectors, elementType) {
+        for (const selector of selectors) {
+            const $element = $(selector);
+            if ($element.length > 0) {
+                console.log(`App: Found ${elementType} element with selector: ${selector}`);
+                return $element;
+            }
         }
-        return window.appElements[type];
+        console.warn(`App: Could not find ${elementType} element with selectors:`, selectors);
+        return null;
     }
     
     /**
-     * Refresh element discovery (call when DOM changes)
+     * Validate cached elements are still in DOM
+     */
+    function validateCachedElements() {
+        if (!state.cachedElements) return false;
+        
+        return Object.values(state.cachedElements).every(element => {
+            return !element || (element.length && $.contains(document, element[0]));
+        });
+    }
+    
+    /**
+     * Get or find specific element with caching
+     */
+    function getElement(type) {
+        if (!state.cachedElements || !validateCachedElements()) {
+            state.cachedElements = findFormElements();
+        }
+        return state.cachedElements[type];
+    }
+    
+    /**
+     * Refresh element cache
      */
     function refreshElements() {
-        window.appElements = findFormElements();
-        console.log('App: Elements refreshed:', window.appElements);
-        
-        // If critical elements are missing, try to create them or provide fallbacks
+        state.cachedElements = null; // Clear cache
+        state.cachedElements = findFormElements();
+        console.log('App: Elements refreshed:', state.cachedElements);
         ensureCriticalElements();
     }
     
     /**
-     * Ensure critical elements exist (create fallbacks if necessary)
+     * Ensure critical elements exist with enhanced detection
      */
     function ensureCriticalElements() {
-        const elements = window.appElements;
+        const elements = state.cachedElements;
         
-        // If we can't find form elements but there's a vForm, try to enhance it
         if (!elements.farms && !elements.sections && !elements.fields) {
             console.warn('App: No form elements found - looking for vForm containers');
             
-            // Look for any form elements that might be from vForm
             const $vformElements = $('form select, form input[type="text"]');
             console.log('App: Found', $vformElements.length, 'form elements in page');
             
             if ($vformElements.length > 0) {
                 showMessage('Formulario detectado - Configurando compatibilidad', 'info');
-                
-                // Try to identify elements by their position or labels
-                $vformElements.each(function(index, element) {
-                    const $elem = $(element);
-                    const label = $elem.prev('label').text().toLowerCase() || 
-                                  $elem.parent().find('label').text().toLowerCase() ||
-                                  $elem.attr('placeholder')?.toLowerCase() || '';
-                    
-                    console.log(`App: Form element ${index}: ${element.tagName} - "${label}"`);
-                    
-                    // Assign IDs based on likely content
-                    if (!elements.farms && (label.includes('farm') || label.includes('granja') || index === 0)) {
-                        $elem.attr('id', 'farms-dynamic');
-                        elements.farms = $elem;
-                        console.log('App: Assigned farms element');
-                    } else if (!elements.sections && (label.includes('section') || label.includes('sección') || index === 1)) {
-                        $elem.attr('id', 'sections-dynamic');
-                        elements.sections = $elem;
-                        console.log('App: Assigned sections element');
-                    } else if (!elements.fields && (label.includes('field') || label.includes('campo') || index === 2)) {
-                        $elem.attr('id', 'fields-dynamic');
-                        elements.fields = $elem;
-                        console.log('App: Assigned fields element');
-                    } else if (!elements.scanner && ($elem.is('input[type="text"]') && (label.includes('scan') || label.includes('código') || label.includes('barcode')))) {
-                        $elem.attr('id', 'scanner-dynamic');
-                        elements.scanner = $elem;
-                        console.log('App: Assigned scanner element');
-                    }
-                });
+                assignElementsByPosition($vformElements, elements);
             }
         }
         
-        window.appElements = elements;
+        state.cachedElements = elements;
+    }
+    
+    /**
+     * Assign elements by position and labels
+     */
+    function assignElementsByPosition($vformElements, elements) {
+        const assignments = [
+            { key: 'farms', patterns: ['farm', 'granja'], index: 0 },
+            { key: 'sections', patterns: ['section', 'sección'], index: 1 },
+            { key: 'fields', patterns: ['field', 'campo'], index: 2 }
+        ];
+        
+        $vformElements.each(function(index, element) {
+            const $elem = $(element);
+            const label = getElementLabel($elem);
+            
+            console.log(`App: Form element ${index}: ${element.tagName} - "${label}"`);
+            
+            for (const assignment of assignments) {
+                if (!elements[assignment.key] && 
+                    (assignment.patterns.some(pattern => label.includes(pattern)) || index === assignment.index)) {
+                    
+                    $elem.attr('id', `${assignment.key}-dynamic`);
+                    elements[assignment.key] = $elem;
+                    console.log(`App: Assigned ${assignment.key} element`);
+                    break;
+                }
+            }
+            
+            // Handle scanner input
+            if (!elements.scanner && $elem.is('input[type="text"]') && 
+                ['scan', 'código', 'barcode'].some(pattern => label.includes(pattern))) {
+                $elem.attr('id', 'scanner-dynamic');
+                elements.scanner = $elem;
+                console.log('App: Assigned scanner element');
+            }
+        });
+    }
+    
+    /**
+     * Get element label text
+     */
+    function getElementLabel($elem) {
+        return ($elem.prev('label').text() || 
+                $elem.parent().find('label').text() ||
+                $elem.attr('placeholder') || '').toLowerCase();
     }
     
     /**
@@ -321,10 +371,19 @@ jQuery(document).ready(function($) {
         // Add form styling if needed
         $('.form-control').addClass('orion-form-control');
         
-        // Add CSS for loading states if not already present
-        if (!$('#orion-loading-styles').length) {
+        // Ensure CSS is loaded
+        ensureOrionStyles();
+        
+        console.log('App: Form setup complete');
+    }
+    
+    /**
+     * Ensure Orion styles are loaded
+     */
+    function ensureOrionStyles() {
+        if ($('#orion-discard-styles').length === 0) {
             $('head').append(`
-                <style id="orion-loading-styles">
+                <style id="orion-discard-styles">
                     .loading {
                         background-image: url('data:image/gif;base64,R0lGODlhEAAQAPIAAP///wAAAMLCwkJCQgAAAGJiYoKCgpKSkiH/C05FVFNDQVBFMi4wAwEAAAAh/hpDcmVhdGVkIHdpdGggYWpheGxvYWQuaW5mbwAh+QQJCgAAACwAAAAAEAAQAAADMwi63P4wyklrE2MIOggZnAdOmGYJRbExwroUmcG2LmDEwnHQLVsYOd2mBzkYDAdKa+dIAAAh+QQJCgAAACwAAAAAEAAQAAADNAi63P5OjCEgG4QMu7DmikRxQlFUYDEZIGBMRVsaqHwctXXf7WEYB4Ag1xjihkMZsiUkKhIAIfkECQoAAAAsAAAAABAAEAAAAzYIujIjK8pByJDMlFYvBoVjHA70GU7xSUJhmKtwHPAKzLO9HMaoKwJZ7Rf8AYPDDzKpZBqfvwQAIfkECQoAAAAsAAAAABAAEAAAAzMIumIlK8oyhpHsnFZfhYumCYUhDAQxRIdhHBGqRoKw0R8DYlJd8z0fMDgsGo/IpHI5TAAAIfkECQoAAAAsAAAAABAAEAAAAzIIunInK0rnZBTwGPNMgQwmdsNgXGJUlIWEuR5oWUIpz8pAEAMe6TwfwyYsGo/IpFKSAAAh+QQJCgAAACwAAAAAEAAQAAADMwi6IMKQORfjdOe82p4wGccc4CEuQradylesojEMBgsUc2G7sDX3lQGBMLAJibufbSlKAAAh+QQJCgAAACwAAAAAEAAQAAADMgi63P7wyklrE2MIOggZnAdOmGYJRbExwroUmcG2LmDEwnHQLVsYOd2mBzkYDAdKa+dIAAAh+QQJCgAAACwAAAAAEAAQAAADNAi63P5OjCEgG4QMu7DmikRxQlFUYDEZIGBMRVsaqHwctXXf7WEYB4Ag1xjihkMZsiUkKhIAIfkECQoAAAAsAAAAABAAEAAA');
                         background-repeat: no-repeat;
@@ -360,8 +419,6 @@ jQuery(document).ready(function($) {
                 </style>
             `);
         }
-        
-        console.log('App: Form setup complete');
     }
     
     // ============================================================================
@@ -369,98 +426,101 @@ jQuery(document).ready(function($) {
     // ============================================================================
     
     /**
-     * Load dropdown data from API using Factory and AJAX functions
+     * Load dropdown data with error handling and validation
      */
     function loadDropdownData() {
-        console.log('App: Loading dropdown data for site:', site);
+        console.log('App: Loading dropdown data for site:', config.site);
         
-        // Refresh elements to get latest form state
         refreshElements();
-        
         const $farms = getElement('farms');
         
         if (!$farms) {
+            const errorMsg = 'Error: No se encontró el dropdown de granjas';
             console.error('App: No farms dropdown found - cannot load data');
-            showMessage('Error: No se encontró el dropdown de granjas', 'error');
-            return;
+            showMessage(errorMsg, 'error');
+            return Promise.reject(new Error(errorMsg));
         }
         
         console.log('App: Using farms element:', $farms[0]);
-        
-        // Add loading class to farms dropdown
         $farms.addClass('loading');
         
-        // Factory is guaranteed to be available at this point
-        var ajaxParam = window.Factory.BuildAjaxParamToDownloadDropdownsData(site);
-        
-        // Verify that parameters were generated correctly
-        if (!ajaxParam) {
-            showMessage('Error: No se pudieron generar los parámetros AJAX', 'error');
-            $farms.removeClass('loading');
-            console.error('App: Factory returned null for dropdown parameters');
-            return;
-        }
-        
-        console.log('App: Generated dropdown parameters:', ajaxParam);
-        
-        // Use AJAX function from ajax.js with callbacks
-        if (typeof window.ajax_fetchOrionFieldsData !== 'function') {
-            showMessage('Error: Funciones AJAX no cargadas', 'error');
-            $farms.removeClass('loading');
-            return;
-        }
-        
-        console.log('App: AJAX Param:', ajaxParam);
-        
-        window.ajax_fetchOrionFieldsData(
-            ajaxParam,
-            apiUrl,
-            window.HTTP_METHODS.GET,
-            function(data) {
-                // Success callback
-                fieldsData = data.data.fields || [];
+        return new Promise((resolve, reject) => {
+            try {
+                const ajaxParam = window.Factory.BuildAjaxParamToDownloadDropdownsData(config.site);
                 
-                console.log('App: Fields data loaded successfully:', fieldsData.length, 'items');
-                
-                processApiData(fieldsData);
-            },
-            // Error callback
-            function(errorMessage) {
-                console.error('App: Error loading fields data:', errorMessage);
-                showMessage(errorMessage, 'error');
-                
-                // Provide retry option
-                setTimeout(function() {
-                    if (confirm('¿Desea intentar cargar los datos nuevamente?')) {
-                        loadDropdownData();
-                    }
-                }, 2000);
-            },
-            // Complete callback
-            function() {
-                if ($farms) {
-                    $farms.removeClass('loading');
+                if (!ajaxParam) {
+                    throw new Error('No se pudieron generar los parámetros AJAX');
                 }
+                
+                console.log('App: Generated dropdown parameters:', ajaxParam);
+                console.log('App: Making AJAX request to:', config.apiUrl);
+                
+                window.ajax_fetchOrionFieldsData(
+                    ajaxParam,
+                    config.apiUrl,
+                    window.HTTP_METHODS.GET,
+                    // Success callback
+                    function(data) {
+                        console.log('App: Raw AJAX response received:', data);
+                        
+                        if (!data || !data.data || !data.data.fields) {
+                            console.error('App: Invalid response structure:', data);
+                            const errorMsg = 'Respuesta inválida del servidor';
+                            showMessage(errorMsg, 'error');
+                            reject(new Error(errorMsg));
+                            return;
+                        }
+                        
+                        state.fieldsData = data.data.fields || [];
+                        console.log('App: Fields data loaded successfully:', state.fieldsData.length, 'items');
+                        console.log('App: Sample field data:', state.fieldsData.slice(0, 3));
+                        
+                        processApiData(state.fieldsData);
+                        resolve(state.fieldsData);
+                    },
+                    // Error callback
+                    function(errorMessage) {
+                        console.error('App: AJAX error loading fields data:', errorMessage);
+                        showMessage(errorMessage, 'error');
+                        
+                        setTimeout(() => {
+                            if (confirm('¿Desea intentar cargar los datos nuevamente?')) {
+                                loadDropdownData().then(resolve).catch(reject);
+                            } else {
+                                reject(new Error(errorMessage));
+                            }
+                        }, 2000);
+                    },
+                    // Complete callback
+                    function() {
+                        console.log('App: AJAX request completed');
+                        $farms.removeClass('loading');
+                    }
+                );
+            } catch (error) {
+                console.error('App: Exception in loadDropdownData:', error);
+                $farms.removeClass('loading');
+                showMessage(`Error: ${error.message}`, 'error');
+                reject(error);
             }
-        );
+        });
     }
     
     /**
-     * Process API data and populate dropdowns
+     * Process API data with validation
      */
     function processApiData(data) {
-        if (!data || !Array.isArray(data)) {
+        if (!Array.isArray(data)) {
+            const errorMsg = 'Formato de datos inválido recibido del servidor';
             console.error('App: Invalid API data format');
-            showMessage('Formato de datos inválido recibido del servidor', 'error');
-            return;
+            showMessage(errorMsg, 'error');
+            throw new Error(errorMsg);
         }
         
-        // fieldsData is already set in loadDropdownData, but ensure it's properly assigned
-        fieldsData = data;
-        console.log('App: Processing data for', fieldsData.length, 'items');
+        state.fieldsData = data;
+        console.log('App: Processing data for', state.fieldsData.length, 'items');
         
-        // Extract and populate farms
-        const farms = fieldsData.filter(item => item.field_type === 'farm');
+        const farms = data.filter(item => item.field_type === 'farm');
         
         if (farms.length === 0) {
             console.warn('App: No farms found in data');
@@ -469,10 +529,7 @@ jQuery(document).ready(function($) {
         }
         
         populateFarmDropdown(farms);
-
         console.log('App: Data processing complete');
-        
-        // Show success message
         showMessage(`Datos cargados: ${farms.length} granjas disponibles`, 'success');
     }
     
@@ -501,7 +558,7 @@ jQuery(document).ready(function($) {
     }
     
     /**
-     * Populate sections dropdown based on selected farm
+     * Populate sections dropdown with error handling
      */
     function populateSectionsDropdown(farmId) {
         const $sectionsSelect = getElement('sections');
@@ -513,26 +570,29 @@ jQuery(document).ready(function($) {
         }
         
         $sectionsSelect.empty().append('<option value="">Seleccione una sección</option>');
-        
         showLoadingIndicator('sections', true);
         
-        const sections = fieldsData.filter(item => 
-            item.field_type === 'sections' && item.farm_name === farmId
-        );
-        
-        sections.forEach(section => {
-            $sectionsSelect.append(`<option value="${section.id}">${section.title}</option>`);
-        });
-        
-        // Enable sections dropdown
-        $sectionsSelect.prop('disabled', false);
-        showLoadingIndicator('sections', false);
-        
-        console.log('App: Sections dropdown populated with', sections.length, 'options');
+        try {
+            const sections = state.fieldsData.filter(item => 
+                item.field_type === 'sections' && item.farm_name === farmId
+            );
+            
+            sections.forEach(section => {
+                $sectionsSelect.append(`<option value="${section.id}">${section.title}</option>`);
+            });
+            
+            $sectionsSelect.prop('disabled', false);
+            console.log('App: Sections dropdown populated with', sections.length, 'options');
+        } catch (error) {
+            console.error('App: Error populating sections:', error);
+            showMessage('Error al cargar secciones', 'error');
+        } finally {
+            showLoadingIndicator('sections', false);
+        }
     }
     
     /**
-     * Populate fields dropdown based on selected section
+     * Populate fields dropdown with error handling
      */
     function populateFieldsDropdown(sectionId) {
         const $fieldsSelect = getElement('fields');
@@ -544,22 +604,25 @@ jQuery(document).ready(function($) {
         }
         
         $fieldsSelect.empty().append('<option value="">Seleccione un campo</option>');
-        
         showLoadingIndicator('fields', true);
         
-        const fields = fieldsData.filter(item => 
-            item.field_type === 'fields' && item.section_name === sectionId
-        );
-        
-        fields.forEach(field => {
-            $fieldsSelect.append(`<option value="${field.id}">${field.title}</option>`);
-        });
-        
-        // Enable fields dropdown
-        $fieldsSelect.prop('disabled', false);
-        showLoadingIndicator('fields', false);
-        
-        console.log('App: Fields dropdown populated with', fields.length, 'options');
+        try {
+            const fields = state.fieldsData.filter(item => 
+                item.field_type === 'fields' && item.section_name === sectionId
+            );
+            
+            fields.forEach(field => {
+                $fieldsSelect.append(`<option value="${field.id}">${field.title}</option>`);
+            });
+            
+            $fieldsSelect.prop('disabled', false);
+            console.log('App: Fields dropdown populated with', fields.length, 'options');
+        } catch (error) {
+            console.error('App: Error populating fields:', error);
+            showMessage('Error al cargar campos', 'error');
+        } finally {
+            showLoadingIndicator('fields', false);
+        }
     }
     
     // ============================================================================
@@ -665,209 +728,314 @@ jQuery(document).ready(function($) {
     // ============================================================================
     
     /**
-     * Setup barcode scanning functionality
+     * Setup barcode scanning with optimized event handling
      */
     function setupBarcodeScanning() {
         console.log('App: Setting up barcode scanning');
         
-        // Use event delegation for scanner input to work with dynamic forms
         const $container = getElement('container') || $(document);
+        const scannerSelectors = 'input[name*="scanner"], input[id*="scanner"], input[name*="barcode"], #scanner-input';
         
-        // Scanner input handling - use event delegation
-        $container.on('input', 'input[name*="scanner"], input[id*="scanner"], input[name*="barcode"], #scanner-input', function() {
+        // Debounced input handling
+        $container.on('input', scannerSelectors, debounce(function() {
             const scannedCode = $(this).val().trim();
             console.log('📥 App: Scanner input detected, value:', scannedCode);
             
             if (scannedCode.length > 0) {
                 console.log('App: Valid barcode input detected, setting timeout...');
-                
-                // Clear previous timeout
-                if (barcodeValidationTimeout) {
-                    clearTimeout(barcodeValidationTimeout);
-                    console.log('App: Cleared previous validation timeout');
-                }
-                
-                // Set new timeout for validation
-                barcodeValidationTimeout = setTimeout(function() {
-                    console.log('⏰ App: Timeout executed, processing barcode:', scannedCode);
-                    processBarcodeInput(scannedCode);
-                    // Clear input after processing - find the specific element that triggered
-                    const $scanner = getElement('scanner');
-                    if ($scanner) {
-                        $scanner.val('');
-                        console.log('App: Scanner input cleared');
-                    }
-                }, 300); // Small delay to allow complete barcode entry
-            } else {
-                console.log('App: Empty scanner input, ignoring');
+                processBarcodeWithTimeout(scannedCode);
             }
-        });
+        }, 100));
         
-        // Scanner input enter key - use event delegation
-        $container.on('keypress', 'input[name*="scanner"], input[id*="scanner"], input[name*="barcode"], #scanner-input', function(e) {
-            console.log('⌨️ App: Keypress detected on scanner input, key:', e.which);
-            
-            if (e.which === 13) { // Enter key
-                console.log('App: Enter key pressed on scanner input');
+        // Immediate processing on Enter key
+        $container.on('keypress', scannerSelectors, function(e) {
+            if (e.which === 13) {
                 e.preventDefault();
                 const scannedCode = $(this).val().trim();
                 console.log('App: Processing barcode from Enter key:', scannedCode);
                 
                 if (scannedCode.length > 0) {
-                    // Clear timeout since we're processing immediately
-                    if (barcodeValidationTimeout) {
-                        clearTimeout(barcodeValidationTimeout);
-                        console.log('App: Cleared validation timeout for immediate processing');
-                    }
+                    clearBarcodeTimeout();
                     processBarcodeInput(scannedCode);
                     $(this).val('');
-                    console.log('App: Scanner input cleared after Enter key processing');
-                } else {
-                    console.log('App: Empty scanner input on Enter key, ignoring');
                 }
             }
         });
         
-        // Focus management - use event delegation
-        $container.on('focus', 'input[name*="scanner"], input[id*="scanner"], input[name*="barcode"], #scanner-input', function() {
-            $(this).select(); // Select all text when focused
+        // Focus management
+        $container.on('focus', scannerSelectors, function() {
+            $(this).select();
         });
         
         console.log('App: Barcode scanning setup complete');
     }
     
     /**
-     * Process scanned barcode input with AJAX validation
+     * Process barcode with timeout management
+     */
+    function processBarcodeWithTimeout(scannedCode) {
+        clearBarcodeTimeout();
+        
+        state.barcodeValidationTimeout = setTimeout(() => {
+            console.log('⏰ App: Timeout executed, processing barcode:', scannedCode);
+            processBarcodeInput(scannedCode);
+            
+            const $scanner = getElement('scanner');
+            if ($scanner) {
+                $scanner.val('');
+                console.log('App: Scanner input cleared');
+            }
+        }, config.barcodeTimeout);
+    }
+    
+    /**
+     * Clear barcode timeout
+     */
+    function clearBarcodeTimeout() {
+        if (state.barcodeValidationTimeout) {
+            clearTimeout(state.barcodeValidationTimeout);
+            state.barcodeValidationTimeout = null;
+        }
+    }
+    
+    /**
+     * Debounce function for performance optimization
+     */
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    /**
+     * Process scanned barcode with improved error handling and validation
      */
     function processBarcodeInput(barcode) {
         console.log('🔍 App: Processing barcode:', barcode);
         
-        // Validate barcode format (basic validation)
-        if (!validateBarcodeFormat(barcode)) {
-            console.warn('App: Invalid barcode format:', barcode);
-            showMessage(`Código de barras inválido: ${barcode}`, 'warning');
-            return;
+        try {
+            // Validate barcode format
+            if (!validateBarcodeFormat(barcode)) {
+                console.warn('App: Invalid barcode format:', barcode);
+                showMessage(`Código de barras inválido: ${barcode}`, 'warning');
+                return;
+            }
+            
+            // Check table manager availability
+            if (!isTableManagerReady()) {
+                console.warn('App: Table manager not ready');
+                showMessage('La tabla no está lista. Seleccione un campo primero.', 'warning');
+                return;
+            }
+            
+            // Check if barcode exists in current data
+            const existingRecords = window.discardsTableManager.findByBarcode(barcode);
+            if (existingRecords.length === 0) {
+                console.warn('App: Barcode not found in current table:', barcode);
+                showMessage(`Material ${barcode} no encontrado en la tabla actual`, 'warning');
+                return;
+            }
+            
+            // Check if material is already discarded (pre-discarded)
+            const record = existingRecords[0];
+            if (record._wasPreDiscarded || record.isDiscarded) {
+                console.warn('App: Material already discarded previously:', barcode);
+                showMessage(`⚠️ Material ${barcode} ya fue descartado anteriormente`, 'warning');
+                
+                // Highlight the already discarded row briefly
+                highlightDiscardedRow(record.post_id || record.id);
+                return;
+            }
+            
+            // Show loading message and proceed with validation
+            showMessage(`🔄 Validando código de barras: ${barcode}...`, 'info');
+            validateBarcodeWithAjax(barcode);
+            
+        } catch (error) {
+            console.error('App: Error processing barcode:', error);
+            showMessage(`Error procesando código de barras: ${error.message}`, 'error');
         }
-        console.log('✅ App: Barcode format validation passed');
-        
-        // Check if table is initialized
-        if (!window.discardsTableManager || !window.discardsTableManager.isInitialized()) {
-            console.warn('App: Table manager not initialized');
-            showMessage('La tabla no está lista. Seleccione un campo primero.', 'warning');
-            return;
+    }
+    
+    /**
+     * Highlight an already discarded row to show user where it is
+     */
+    function highlightDiscardedRow(postId) {
+        try {
+            // Find the row by post_id
+            const $row = $(`#discards-table tr[data-post-id="${postId}"]`);
+            if ($row.length > 0) {
+                // Add highlight effect
+                $row.addClass('row-already-discarded-highlight');
+                
+                // Remove highlight after delay
+                setTimeout(() => {
+                    $row.removeClass('row-already-discarded-highlight');
+                }, 3000);
+                
+                // Scroll to row if not visible
+                $row[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } catch (error) {
+            console.error('App: Error highlighting discarded row:', error);
         }
-        console.log('✅ App: Table manager is initialized');
-        
-        // Check if barcode exists in table first
-        const existingRecords = window.discardsTableManager.findByBarcode(barcode);
-        console.log('App: Found existing records for barcode:', existingRecords.length);
-        
-        if (existingRecords.length === 0) {
-            console.warn('App: Barcode not found in current table:', barcode);
-            showMessage(`Material ${barcode} no encontrado en la tabla actual`, 'warning');
-            return;
+    }
+    
+    /**
+     * Check if table manager is ready
+     */
+    function isTableManagerReady() {
+        return window.discardsTableManager && window.discardsTableManager.isInitialized();
+    }
+    
+    /**
+     * Validate barcode with AJAX call
+     */
+    function validateBarcodeWithAjax(barcode) {
+        if (!window.Factory?.BuildAjaxParamToValidateBarcode) {
+            throw new Error('Factory de validación no disponible');
         }
-        console.log('✅ App: Barcode exists in table, proceeding with validation');
         
-        // Show loading message
-        showMessage(`🔄 Validando código de barras: ${barcode}...`, 'info');
-        
-        // Check if Factory is available
-        if (!window.Factory || typeof window.Factory.BuildAjaxParamToValidateBarcode !== 'function') {
-            console.error('App: Factory or BuildAjaxParamToValidateBarcode function not available');
-            showMessage('Error: Factory de parámetros AJAX no disponible', 'error');
-            return;
-        }
-        console.log('✅ App: Factory is available');
-        
-        // Build AJAX parameters for barcode validation
-        console.log('App: Building AJAX params with:', { site, year, recordType: 'orion-discard', barcode });
         const ajaxParam = window.Factory.BuildAjaxParamToValidateBarcode(
-            site,
-            year,
+            config.site,
+            config.year,
             'orion-discard',
             barcode
         );
         
         if (!ajaxParam) {
-            console.error('App: Failed to build AJAX parameters');
-            showMessage('Error: No se pudieron generar los parámetros AJAX', 'error');
-            return;
+            throw new Error('No se pudieron generar los parámetros AJAX');
         }
         
-        console.log('✅ App: AJAX parameters built successfully:', ajaxParam);
-        
-        // Check if AJAX function is available
         if (!window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode) {
-            console.error('App: AJAX validation function not available');
-            showMessage('Error: Función de validación AJAX no disponible', 'error');
-            return;
+            throw new Error('Función de validación AJAX no disponible');
         }
-        console.log('✅ App: AJAX validation function is available');
         
-        // Call AJAX function to validate and mark barcode as discarded
         console.log('🚀 App: Calling AJAX validation function...');
+        
         window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode(
             ajaxParam,
             window.HTTP_METHODS.POST,
             // Success callback
-            function(response) {
-                console.log('✅ App: Barcode validation successful:', response);
-                
-                // ✅ CORRECCIÓN: Acceder correctamente al post_id de la respuesta
-                // La estructura de wp_send_json_success es: response.post_id (no response.data.post_id)
-                const postId = response.post_id || null;
-                
-                console.log('App: Extracted post_id from response:', postId);
-                console.log('App: Full response structure:', response);
-                
-                if (postId) {
-                    console.log('App: Updating row status for post_id:', postId);
-                    const updated = window.discardsTableManager.updateRowStatusById(postId, '✅');
-                    
-                    if (updated) {
-                        showMessage(`✅ Material ${barcode} marcado como descartado exitosamente`, 'success');
-                        
-                        // Show statistics
-                        const stats = window.discardsTableManager.getStatistics();
-                        console.log('App: Current statistics:', stats);
-                        
-                        // Focus back to scanner
-                        setTimeout(function() {
-                            const $scanner = getElement('scanner');
-                            if ($scanner) {
-                                $scanner.focus();
-                            }
-                        }, 500);
-                        
-                    } else {
-                        console.warn('App: Failed to update row status in table for post_id:', postId);
-                        showMessage(`Error al actualizar el estado visual del material ${barcode}`, 'warning');
-                    }
-                } else {
-                    // ✅ CORRECCIÓN: No usar fallback con barcode, solo post_id
-                    console.error('App: No post_id found in response - cannot update table row');
-                    console.log('App: Available response keys:', Object.keys(response));
-                    showMessage(`Error: No se pudo identificar el registro para actualizar`, 'error');
-                }
-            },
+            (response) => handleBarcodeValidationSuccess(response, barcode),
             // Error callback
-            function(errorMessage) {
-                console.error('❌ App: Barcode validation failed:', errorMessage);
-                
-                if (errorMessage.includes('already discarded')) {
-                    showMessage(`⚠️ Material ${barcode} ya fue descartado anteriormente`, 'warning');
-                } else if (errorMessage.includes('not found')) {
-                    showMessage(`❌ Material ${barcode} no encontrado en el sistema`, 'error');
-                } else {
-                    showMessage(`Error al validar código: ${errorMessage}`, 'error');
-                }
-            },
+            (errorMessage) => handleBarcodeValidationError(errorMessage, barcode),
             // Complete callback
-            function() {
-                console.log('🏁 App: Barcode validation request completed');
-            }
+            () => console.log('🏁 App: Barcode validation request completed')
         );
+    }
+    
+    /**
+     * Handle successful barcode validation
+     */
+    function handleBarcodeValidationSuccess(response, barcode) {
+        console.log('✅ App: Barcode validation successful:', response);
+        
+        // Instead of relying on post_id from server response, 
+        // update row directly by barcode to ensure correct row is marked
+        const updated = window.discardsTableManager.updateRowStatusByBarcode(barcode, '✅');
+        
+        if (updated) {
+            console.log('App: Successfully updated row for barcode:', barcode);
+            showMessage(`✅ Material ${barcode} marcado como descartado exitosamente`, 'success');
+            
+            // Focus back to scanner after delay
+            setTimeout(() => {
+                const $scanner = getElement('scanner');
+                if ($scanner) {
+                    $scanner.focus();
+                }
+            }, 500);
+        } else {
+            console.warn('App: Failed to update row status in table for barcode:', barcode);
+            
+            // Fallback: try using post_id from response if barcode update failed
+            const postId = response.post_id;
+            if (postId) {
+                console.log('App: Attempting fallback update using post_id from response:', postId);
+                const fallbackUpdated = window.discardsTableManager.updateRowStatusById(postId, '✅');
+                
+                if (fallbackUpdated) {
+                    showMessage(`✅ Material ${barcode} marcado como descartado exitosamente (fallback)`, 'success');
+                } else {
+                    showMessage(`Error al actualizar el estado visual del material ${barcode}`, 'error');
+                }
+            } else {
+                showMessage(`Error al actualizar el estado visual del material ${barcode}`, 'error');
+            }
+        }
+    }
+    
+    /**
+     * Test barcode scanner functionality without AJAX call
+     * This function simulates successful barcode validation for testing
+     * NOTE: Uses internal barcode data (hidden from user interface)
+     */
+    function testBarcodeScanner(testBarcode) {
+        console.log('🧪 Testing barcode scanner with internal barcode:', testBarcode);
+        
+        if (!testBarcode) {
+            console.error('Test: No barcode provided');
+            return;
+        }
+        
+        // Check if table manager is ready
+        if (!isTableManagerReady()) {
+            console.warn('Test: Table manager not ready');
+            showMessage('La tabla no está lista. Seleccione un campo primero.', 'warning');
+            return;
+        }
+        
+        // Check if barcode exists in internal data (not visible to users)
+        const existingRecords = window.discardsTableManager.findByBarcode(testBarcode);
+        if (existingRecords.length === 0) {
+            console.warn('Test: Internal barcode not found in current table:', testBarcode);
+            showMessage(`Material con código interno ${testBarcode} no encontrado en la tabla actual`, 'warning');
+            return;
+        }
+        
+        console.log('Test: Found existing records for internal barcode:', existingRecords.length);
+        console.log('Test: Note - Barcode is internal data, not visible to users');
+        
+        // Simulate successful validation and update row using internal barcode
+        const updated = window.discardsTableManager.updateRowStatusByBarcode(testBarcode, '🧪');
+        
+        if (updated) {
+            console.log('✅ Test: Successfully updated row for internal barcode:', testBarcode);
+            showMessage(`🧪 TEST: Material marcado exitosamente (código interno)`, 'success');
+        } else {
+            console.error('❌ Test: Failed to update row for internal barcode:', testBarcode);
+            showMessage(`❌ TEST: Error al marcar material con código interno`, 'error');
+        }
+    }
+    
+    // Expose test function globally for debugging
+    window.testBarcodeScanner = testBarcodeScanner;
+
+    /**
+     * Handle barcode validation error
+     */
+    function handleBarcodeValidationError(errorMessage, barcode) {
+        console.error('❌ App: Barcode validation failed:', errorMessage);
+        
+        const errorMessages = {
+            'already discarded': `⚠️ Material ${barcode} ya fue descartado anteriormente`,
+            'not found': `❌ Material ${barcode} no encontrado en el sistema`,
+            'default': `Error al validar código: ${errorMessage}`
+        };
+        
+        const messageKey = Object.keys(errorMessages).find(key => 
+            key !== 'default' && errorMessage.includes(key)
+        ) || 'default';
+        
+        const messageType = messageKey === 'already discarded' ? 'warning' : 'error';
+        showMessage(errorMessages[messageKey], messageType);
     }
     
     /**
@@ -928,51 +1096,65 @@ jQuery(document).ready(function($) {
     }
     
     /**
-     * Show message to user with enhanced styling
+     * Show message with optimized timeout management
      */
     function showMessage(message, type = 'info') {
         console.log(`App Message [${type}]: ${message}`);
         
-        // Use global message function if available
         if (typeof window.showMessage === 'function') {
             window.showMessage(message, type);
-        } else {
-            // Fallback notification system
-            const alertClass = type === 'error' ? 'alert-danger' : 
-                               type === 'success' ? 'alert-success' : 
-                               type === 'warning' ? 'alert-warning' : 'alert-info';
-            
-            const icon = type === 'error' ? '❌' : 
-                        type === 'success' ? '✅' : 
-                        type === 'warning' ? '⚠️' : 'ℹ️';
-            
-            const $alert = $(`
-                <div class="alert ${alertClass} alert-dismissible fade show orion-message" role="alert" style="margin-bottom: 10px;">
-                    ${icon} ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `);
-            
-            // Find message container using flexible approach
-            const $container = getElement('container');
-            let $messageContainer = $('#orion-messages');
-            
-            if ($messageContainer.length === 0 && $container) {
-                $messageContainer = $container;
-            }
-            if ($messageContainer.length === 0) {
-                $messageContainer = $('body');
-            }
-            
-            $messageContainer.prepend($alert);
-            
-            // Auto-remove after delay
-            setTimeout(function() {
-                $alert.fadeOut(function() {
-                    $(this).remove();
-                });
-            }, type === 'error' ? 8000 : 5000);
+            return;
         }
+        
+        // Fallback notification system with improved styling
+        const messageConfig = {
+            error: { class: 'alert-danger', icon: '❌' },
+            success: { class: 'alert-success', icon: '✅' },
+            warning: { class: 'alert-warning', icon: '⚠️' },
+            info: { class: 'alert-info', icon: 'ℹ️' }
+        };
+        
+        const msgConfig = messageConfig[type] || messageConfig.info;
+        
+        const $alert = $(`
+            <div class="alert ${msgConfig.class} alert-dismissible fade show orion-message" 
+                 role="alert" style="margin-bottom: 10px;">
+                ${msgConfig.icon} ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `);
+        
+        const $container = getMessageContainer();
+        $container.prepend($alert);
+        
+        // Auto-remove with appropriate timeout
+        const timeout = type === 'error' ? 
+            config.messageTimeouts.error : 
+            config.messageTimeouts.default;
+            
+        setTimeout(() => {
+            $alert.fadeOut(() => $alert.remove());
+        }, timeout);
+    }
+    
+    /**
+     * Get message container with fallback logic
+     */
+    function getMessageContainer() {
+        const candidates = [
+            '#orion-messages',
+            getElement('container'),
+            $('body')
+        ];
+        
+        for (const candidate of candidates) {
+            const $container = typeof candidate === 'string' ? $(candidate) : candidate;
+            if ($container && $container.length > 0) {
+                return $container;
+            }
+        }
+        
+        return $('body'); // Ultimate fallback
     }
     
     /**
@@ -1012,14 +1194,14 @@ jQuery(document).ready(function($) {
         console.log('📋 Environment:', {
             jQuery: typeof $ !== 'undefined',
             orionDiscard: typeof orionDiscard !== 'undefined',
-            site: site,
-            year: year,
-            apiUrl: apiUrl
+            site: config.site,
+            year: config.year,
+            apiUrl: config.apiUrl
         });
         
         // Refresh elements discovery and show results
         refreshElements();
-        const elements = window.appElements || {};
+        const elements = state.cachedElements || {};
         
         console.log('🏗️ DOM Elements Discovery:', {
             tableElement: $('#discards-table').length > 0,
@@ -1047,8 +1229,8 @@ jQuery(document).ready(function($) {
         });
         
         console.log('🔧 Initialization:', {
-            initializationComplete: initializationComplete,
-            fieldsDataLoaded: fieldsData.length > 0
+            initializationComplete: state.initializationComplete,
+            fieldsDataLoaded: state.fieldsData.length > 0
         });
         
         console.groupEnd();
@@ -1083,8 +1265,8 @@ jQuery(document).ready(function($) {
         checkBasicDependencies: checkBasicDependencies,
         
         // State information
-        isInitialized: function() { return initializationComplete; },
-        getFieldsData: function() { return fieldsData; },
+        isInitialized: () => state.initializationComplete,
+        getFieldsData: () => state.fieldsData,
         
         // Utility functions
         clearTable: clearTable,
@@ -1096,15 +1278,83 @@ jQuery(document).ready(function($) {
             processBarcodeInput(testBarcode || 'TEST123');
         },
         
+        // Debug function: Force reload dropdown data
+        forceReloadDropdowns: function() {
+            console.log('🔄 Force reloading dropdown data...');
+            refreshElements();
+            const $farms = getElement('farms');
+            if ($farms) {
+                console.log('✅ Farms element found:', $farms[0]);
+            } else {
+                console.log('❌ Farms element not found');
+                return;
+            }
+            
+            return loadDropdownData()
+                .then((data) => {
+                    console.log('✅ Dropdown data reloaded successfully:', data.length, 'items');
+                    return data;
+                })
+                .catch((error) => {
+                    console.error('❌ Failed to reload dropdown data:', error);
+                    throw error;
+                });
+        },
+        
+        // Debug function: Check current dropdown state
+        checkDropdownState: function() {
+            console.log('🔍 Checking dropdown state...');
+            refreshElements();
+            const elements = state.cachedElements;
+            
+            console.log('Found elements:', {
+                farms: elements?.farms ? `${elements.farms.length} element(s)` : 'NOT FOUND',
+                sections: elements?.sections ? `${elements.sections.length} element(s)` : 'NOT FOUND',
+                fields: elements?.fields ? `${elements.fields.length} element(s)` : 'NOT FOUND',
+                scanner: elements?.scanner ? `${elements.scanner.length} element(s)` : 'NOT FOUND'
+            });
+            
+            if (elements?.farms) {
+                const $farms = elements.farms;
+                console.log('Farms dropdown:', {
+                    element: $farms[0],
+                    options: $farms.find('option').length,
+                    disabled: $farms.prop('disabled'),
+                    value: $farms.val()
+                });
+            }
+            
+            console.log('Fields data:', {
+                loaded: state.fieldsData.length > 0,
+                count: state.fieldsData.length,
+                farms: state.fieldsData.filter(item => item.field_type === 'farm').length,
+                sections: state.fieldsData.filter(item => item.field_type === 'sections').length,
+                fields: state.fieldsData.filter(item => item.field_type === 'fields').length
+            });
+            
+            return {
+                elements: elements,
+                fieldsData: state.fieldsData
+            };
+        },
+        
         testAjaxFunction: function() {
             console.log('🧪 Testing AJAX function availability:');
-            console.log('Factory available:', typeof window.Factory !== 'undefined');
-            console.log('BuildAjaxParamToValidateBarcode available:', typeof window.Factory?.BuildAjaxParamToValidateBarcode === 'function');
-            console.log('AJAX function available:', typeof window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode === 'function');
-            console.log('HTTP_METHODS available:', typeof window.HTTP_METHODS !== 'undefined');
+            const tests = {
+                'Factory available': typeof window.Factory !== 'undefined',
+                'BuildAjaxParamToValidateBarcode available': typeof window.Factory?.BuildAjaxParamToValidateBarcode === 'function',
+                'AJAX function available': typeof window.ajax_handle_get_data_from_vForm_recordType_To_ValidateBarCode === 'function',
+                'HTTP_METHODS available': typeof window.HTTP_METHODS !== 'undefined'
+            };
             
-            if (window.Factory && window.Factory.BuildAjaxParamToValidateBarcode) {
-                const testParams = window.Factory.BuildAjaxParamToValidateBarcode(site, year, 'orion-discard', 'TEST123');
+            Object.entries(tests).forEach(([test, result]) => {
+                console.log(`${result ? '✅' : '❌'} ${test}`);
+            });
+            
+            if (window.Factory?.BuildAjaxParamToValidateBarcode) {
+                const testParams = window.Factory.BuildAjaxParamToValidateBarcode(
+                    config.site, config.year, 'orion-discard', 'TEST123'
+                );
                 console.log('Test AJAX params:', testParams);
             }
         },

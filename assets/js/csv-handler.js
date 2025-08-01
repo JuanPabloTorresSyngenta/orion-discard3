@@ -1,749 +1,1131 @@
 /**
  * CSV Handler for Orion Discard Plugin
- * Complete and precise implementation for field selection data loading
+ * Optimized implementation with improved efficiency and maintainability
  * 
- * ARCHITECTURE:
- * - Monitors field dropdown changes with precision
- * - Loads data via API with comprehensive error handling
- * - Delegates all table operations to centralized manager
- * - Robust data processing and normalization
- * - User feedback and loading states
+ * FEATURES:
+ * - ES6 Class-based architecture for better organization
+ * - Optimized dependency management and loading
+ * - Enhanced error handling with retry mechanisms
+ * - Memory-efficient data processing
+ * - Debounced field selection for performance
+ * 
+ * SECURITY & DATA HANDLING:
+ * - Barcode data is stored internally and hidden from user interface
+ * - Only essential data fields are visible to users in the table
+ * - Scanner functionality uses internal barcode validation
+ * - Post_id and barcode mapping preserved for system functionality
  */
 
 jQuery(document).ready(function($) {
     'use strict';
     
-    console.log('CSV Handler: Starting initialization');
-    
-    // ============================================================================
-    // GLOBAL VARIABLES
-    // ============================================================================
-    
-    let csvData = [];
-    let isLoading = false;
-    let currentFieldId = null;
-    
-    const site = orionDiscard.site || "PRSA";
-    const year = orionDiscard.year || new Date().getFullYear();
-    
-    // ============================================================================
-    // INITIALIZATION SEQUENCE
-    // ============================================================================
+    console.log('CSV Handler: Initializing optimized handler');
     
     /**
-     * Initialize CSV handler with dependency management
+     * Main CSV Handler Class
+     * Encapsulates all CSV handling functionality with improved efficiency
      */
-    function initializeCsvHandler() {
-        console.log('CSV Handler: Starting initialization sequence');
+    class CSVHandler {
+        constructor() {
+            // Core state
+            this.csvData = [];
+            this.isLoading = false;
+            this.currentFieldId = null;
+            this.loadingTimeout = null;
+            
+            // Configuration
+            this.config = {
+                site: orionDiscard?.site || "PRSA",
+                year: orionDiscard?.year || new Date().getFullYear(),
+                maxRecords: 10000,
+                defaultStatus: '❌',
+                debounceDelay: 300,
+                retryAttempts: 3,
+                retryDelay: 1000
+            };
+            
+            // Dependencies cache
+            this.dependencies = new Map();
+            this.isInitialized = false;
+            
+            // Bind methods to maintain context
+            this.handleFieldChange = this.handleFieldChange.bind(this);
+            this.loadFieldData = this.loadFieldData.bind(this);
+        }
+    
         
-        // Wait for dependencies with timeout
-        waitForDependencies(function(ready) {
-            if (ready) {
-                setupFieldMonitoring();
-                setupDataProcessing();
+        /**
+         * Initialize the CSV handler with optimized dependency checking
+         */
+        async initialize() {
+            console.log('CSV Handler: Starting optimized initialization');
+            
+            try {
+                await this.waitForDependencies();
+                this.setupFieldMonitoring();
+                this.setupDataProcessing();
+                this.isInitialized = true;
                 console.log('CSV Handler: Initialization complete');
-            } else {
-                console.error('CSV Handler: Failed to initialize - dependencies timeout');
-                showMessage('Error: No se pudieron cargar las dependencias del sistema', 'error');
-            }
-        });
-    }
-    
-    /**
-     * Wait for required dependencies with comprehensive checking
-     */
-    function waitForDependencies(callback) {
-        let attempts = 0;
-        const maxAttempts = 100; // 10 seconds max
-        const checkInterval = 100;
-        
-        function checkDependencies() {
-            attempts++;
-            
-            if (attempts > maxAttempts) {
-                console.error('CSV Handler: Timeout waiting for dependencies');
-                console.error('CSV Handler: Final dependency state:', getDependencyState());
-                callback(false);
-                return;
-            }
-            
-            const dependencyState = getDependencyState();
-            
-            // Check if all required dependencies are available
-            if (dependencyState.allReady) {
-                console.log('CSV Handler: All dependencies ready');
-                console.log('CSV Handler: Dependency state:', dependencyState);
-                callback(true);
-            } else {
-                // Log progress every second
-                if (attempts % 10 === 0) {
-                    console.log(`CSV Handler: Waiting for dependencies (${attempts}/10s):`, dependencyState);
-                }
-                setTimeout(checkDependencies, checkInterval);
+                return true;
+            } catch (error) {
+                console.error('CSV Handler: Initialization failed:', error);
+                this.showMessage('Error: No se pudieron cargar las dependencias del sistema', 'error');
+                return false;
             }
         }
         
-        checkDependencies();
-    }
-    
-    /**
-     * Get current dependency state
-     */
-    function getDependencyState() {
-        const state = {
-            tableManager: typeof window.discardsTableManager !== 'undefined',
-            factory: typeof window.Factory !== 'undefined',
-            ajax: typeof window.ajax_getDataFrom_vFromRecordType !== 'undefined',
-            httpMethods: typeof window.HTTP_METHODS !== 'undefined',
-            tableElement: $('#discards-table').length > 0,
-            fieldsDropdown: $('#fields').length > 0
-        };
+        /**
+         * Optimized dependency checking with Promise-based approach
+         */
+        async waitForDependencies(maxWaitTime = 10000) {
+            const startTime = Date.now();
+            const checkInterval = 100;
+            
+            return new Promise((resolve, reject) => {
+                const checkDependencies = () => {
+                    const elapsed = Date.now() - startTime;
+                    
+                    if (elapsed > maxWaitTime) {
+                        reject(new Error('Timeout waiting for dependencies'));
+                        return;
+                    }
+                    
+                    if (this.areDependenciesReady()) {
+                        console.log('CSV Handler: Dependencies ready in', elapsed, 'ms');
+                        resolve(true);
+                    } else {
+                        setTimeout(checkDependencies, checkInterval);
+                    }
+                };
+                
+                checkDependencies();
+            });
+        }
         
-        state.allReady = Object.values(state).every(ready => ready);
-        
-        return state;
-    }
+        /**
+         * Efficient dependency state checking with caching
+         */
+        areDependenciesReady() {
+            const requiredDeps = {
+                tableManager: () => window.discardsTableManager?.isInitialized?.(),
+                factory: () => typeof window.Factory !== 'undefined',
+                ajax: () => typeof window.ajax_getDataFrom_vFromRecordType !== 'undefined',
+                httpMethods: () => typeof window.HTTP_METHODS !== 'undefined',
+                elements: () => $('#discards-table').length > 0 && $('#fields').length > 0
+            };
+            
+            // Cache dependency states to avoid repeated DOM queries
+            for (const [key, checkFn] of Object.entries(requiredDeps)) {
+                if (!this.dependencies.has(key)) {
+                    this.dependencies.set(key, checkFn());
+                }
+            }
+            
+            return Array.from(this.dependencies.values()).every(ready => ready);
+        }
     
-    // ============================================================================
-    // FIELD MONITORING SYSTEM
-    // ============================================================================
-    
-    /**
-     * Setup field dropdown monitoring with advanced event handling
-     */
-    function setupFieldMonitoring() {
-        console.log('CSV Handler: Setting up comprehensive field monitoring');
         
-        // Use event delegation for robustness
-        $(document).on('change', '#fields', function() {
-            const selectedField = $(this).val();
-            const fieldName = $(this).find('option:selected').text();
+        /**
+         * Setup optimized field monitoring with debouncing
+         */
+        setupFieldMonitoring() {
+            console.log('CSV Handler: Setting up optimized field monitoring');
+            
+            // Use debounced handler to prevent excessive API calls
+            const debouncedHandler = this.debounce(this.handleFieldChange, this.config.debounceDelay);
+            
+            // Event delegation for robustness
+            $(document).off('change.csvHandler', '#fields');
+            $(document).on('change.csvHandler', '#fields', debouncedHandler);
+            
+            // Monitor programmatic changes
+            $(document).off('input.csvHandler', '#fields');
+            $(document).on('input.csvHandler', '#fields', debouncedHandler);
+            
+            console.log('CSV Handler: Field monitoring setup complete');
+        }
+        
+        /**
+         * Optimized field change handler with validation
+         */
+        handleFieldChange(event) {
+            const $field = $(event.target);
+            const selectedField = $field.val();
+            const fieldName = $field.find('option:selected').text();
             
             console.log('CSV Handler: Field changed to:', selectedField, '(' + fieldName + ')');
             
+            // Clear any pending loads
+            if (this.loadingTimeout) {
+                clearTimeout(this.loadingTimeout);
+                this.loadingTimeout = null;
+            }
+            
             // Update current field tracking
-            currentFieldId = selectedField;
+            this.currentFieldId = selectedField;
             
             if (selectedField && selectedField !== '') {
-                handleFieldSelection(selectedField, fieldName);
+                this.handleFieldSelection(selectedField, fieldName);
             } else {
-                handleFieldDeselection();
+                this.handleFieldDeselection();
             }
-        });
+        }
         
-        // Also monitor for programmatic changes
-        $(document).on('change blur', '#fields', function() {
-            // Double-check for any missed changes
-            const currentVal = $(this).val();
-            if (currentVal !== currentFieldId) {
-                $(this).trigger('change');
+        /**
+         * Handle field selection with optimized loading
+         */
+        handleFieldSelection(fieldId, fieldName) {
+            console.log('CSV Handler: Handling field selection:', fieldId);
+            
+            // Prevent multiple simultaneous loads
+            if (this.isLoading) {
+                console.warn('CSV Handler: Load in progress, cancelling');
+                return;
             }
-        });
-        
-        console.log('CSV Handler: Field monitoring setup complete');
-    }
-    
-    /**
-     * Handle field selection
-     */
-    function handleFieldSelection(fieldId, fieldName) {
-        console.log('CSV Handler: Handling field selection:', fieldId);
-        
-        // Prevent multiple simultaneous loads
-        if (isLoading) {
-            console.warn('CSV Handler: Already loading data, ignoring duplicate request');
-            return;
+            
+            // Show immediate feedback
+            this.showMessage(`Cargando datos para: ${fieldName}`, 'info');
+            
+            // Clear existing data efficiently
+            this.clearData();
+            
+            // Load new data with small delay for UX
+            this.loadingTimeout = setTimeout(() => {
+                this.loadFieldData(fieldId, fieldName);
+            }, 100);
         }
         
-        // Show immediate feedback
-        showMessage(`Cargando datos para el campo: ${fieldName}`, 'info');
-        
-        // Clear existing data first
-        clearTableData();
-        
-        // Load new data
-        loadFieldData(fieldId, fieldName);
-    }
-    
-    /**
-     * Handle field deselection
-     */
-    function handleFieldDeselection() {
-        console.log('CSV Handler: Handling field deselection');
-        
-        // Cancel any ongoing load
-        isLoading = false;
-        
-        // Clear data and table
-        clearTableData();
-        
-        // Reset state
-        currentFieldId = null;
-        csvData = [];
-        
-        showMessage('Seleccione un campo para ver los datos', 'info');
-    }
-    
-    // ============================================================================
-    // DATA LOADING SYSTEM
-    // ============================================================================
-    
-    /**
-     * Load data for selected field with comprehensive error handling
-     */
-    function loadFieldData(fieldId, fieldName) {
-        console.log('CSV Handler: Loading data for field:', fieldId);
-        
-        // Set loading state
-        isLoading = true;
-        showLoadingIndicator(true);
-        
-        try {
-            // Build AJAX parameters using factory
-            const ajaxParams = window.Factory.BuildAjaxParamToDownloadVFormRecordTypeData(
-                "orion-discard",
-                site,
-                year,
-                "get_data_from_vForm_recordType"
-            );
+        /**
+         * Handle field deselection efficiently
+         */
+        handleFieldDeselection() {
+            console.log('CSV Handler: Handling field deselection');
             
-            console.log('CSV Handler: AJAX parameters built:', ajaxParams);
+            // Cancel any pending operations
+            this.cancelPendingOperations();
             
-            // Make API call with comprehensive callbacks
-            window.ajax_getDataFrom_vFromRecordType(
-                ajaxParams,
-                window.HTTP_METHODS.POST,
-                function(response) {
-                    // Success callback
-                    handleApiSuccess(response, fieldId, fieldName);
-                },
-                function(error) {
-                    // Error callback
-                    handleApiError(error, fieldId, fieldName);
-                },
-                function() {
-                    // Complete callback
-                    handleApiComplete();
-                }
-            );
+            // Clear data and reset state
+            this.clearData();
+            this.currentFieldId = null;
             
-        } catch (error) {
-            console.error('CSV Handler: Error setting up API call:', error);
-            handleApiError(error, fieldId, fieldName);
-            handleApiComplete();
+            this.showMessage('Seleccione un campo para ver los datos', 'info');
         }
-    }
     
-    /**
-     * Handle successful API response
-     */
-    function handleApiSuccess(response, fieldId, fieldName) {
-        console.log('CSV Handler: API success for field:', fieldId);
-        console.log('CSV Handler: Response received:', response);
         
-        try {
-            processApiResponse(response, fieldName);
-        } catch (error) {
-            console.error('CSV Handler: Error processing API response:', error);
-            showMessage(`Error al procesar datos del campo ${fieldName}: ${error.message}`, 'error');
-        }
-    }
-    
-    /**
-     * Handle API error
-     */
-    function handleApiError(error, fieldId, fieldName) {
-        console.error('CSV Handler: API error for field:', fieldId, error);
-        
-        const errorMessage = error && error.message ? error.message : 'Error desconocido';
-        showMessage(`Error al cargar datos del campo ${fieldName}: ${errorMessage}`, 'error');
-        
-        // Provide retry option
-        setTimeout(function() {
-            if (currentFieldId === fieldId && confirm(`¿Desea intentar cargar los datos del campo "${fieldName}" nuevamente?`)) {
-                loadFieldData(fieldId, fieldName);
-            }
-        }, 2000);
-    }
-    
-    /**
-     * Handle API call completion
-     */
-    function handleApiComplete() {
-        console.log('CSV Handler: API call completed');
-        isLoading = false;
-        showLoadingIndicator(false);
-    }
-    
-    // ============================================================================
-    // DATA PROCESSING SYSTEM
-    // ============================================================================
-    
-    /**
-     * Setup data processing configuration
-     */
-    function setupDataProcessing() {
-        console.log('CSV Handler: Setting up data processing');
-        
-        // Configure processing parameters
-        window.csvProcessingConfig = {
-            maxRecords: 10000, // Prevent memory issues
-            requiredFields: ['id', 'barcd'], // Minimum required fields
-            defaultStatus: '❌',
-            timeoutMs: 30000 // Processing timeout
-        };
-        
-        console.log('CSV Handler: Data processing setup complete');
-    }
-    
-    /**
-     * Process API response with comprehensive data handling
-     */
-    function processApiResponse(response, fieldName) {
-        console.log('CSV Handler: Processing API response');
-        
-        let records = [];
-        
-        try {
-            // Extract data from various response formats
-            records = extractDataFromResponse(response);
+        /**
+         * Load field data with enhanced error handling and retry logic
+         */
+        async loadFieldData(fieldId, fieldName, retryCount = 0) {
+            console.log('CSV Handler: Loading data for field:', fieldId, 'Attempt:', retryCount + 1);
             
-            // Validate extracted data
-            validateExtractedData(records);
+            // Set loading state
+            this.isLoading = true;
+            this.showLoadingIndicator(true);
             
-            // Process and normalize records
-            const processedData = processRecords(records);
-            
-            // Store processed data
-            csvData = processedData;
-            
-            // Update table with new data
-            updateTableWithProcessedData(processedData, fieldName);
-            
-            console.log('CSV Handler: Data processing completed successfully');
-            
-        } catch (error) {
-            console.error('CSV Handler: Data processing error:', error);
-            throw error; // Re-throw to be handled by caller
-        }
-    }
-    
-    /**
-     * Extract data from various response formats
-     */
-    function extractDataFromResponse(response) {
-        console.log('CSV Handler: Extracting data from response');
-        
-        let records = [];
-        
-        // Handle different response structures
-        if (response && response.data && response.data.csv_content) {
-            records = response.data.csv_content;
-            console.log('CSV Handler: Extracted from response.data.csv_content');
-        } else if (response && response.csv_content) {
-            records = response.csv_content;
-            console.log('CSV Handler: Extracted from response.csv_content');
-        } else if (response && response.data) {
-            records = response.data;
-            console.log('CSV Handler: Extracted from response.data');
-        } else if (Array.isArray(response)) {
-            records = response;
-            console.log('CSV Handler: Used response directly as array');
-        } else {
-            throw new Error('Formato de respuesta no reconocido');
-        }
-        
-        // Handle string data (parse JSON if needed)
-        if (typeof records === 'string') {
             try {
-                records = JSON.parse(records);
-                console.log('CSV Handler: Parsed JSON string');
-            } catch (parseError) {
-                throw new Error('Error al analizar datos JSON: ' + parseError.message);
-            }
-        }
-        
-        return records;
-    }
-    
-    /**
-     * Validate extracted data
-     */
-    function validateExtractedData(records) {
-        console.log('CSV Handler: Validating extracted data');
-        
-        // Ensure we have an array
-        if (!Array.isArray(records)) {
-            throw new Error('Los datos extraídos no están en formato de array');
-        }
-        
-        // Check for reasonable data size
-        if (records.length === 0) {
-            throw new Error('No hay datos disponibles para el campo seleccionado');
-        }
-        
-        if (records.length > window.csvProcessingConfig.maxRecords) {
-            throw new Error(`Demasiados registros (${records.length}), máximo permitido: ${window.csvProcessingConfig.maxRecords}`);
-        }
-        
-        console.log('CSV Handler: Data validation passed -', records.length, 'records');
-    }
-    
-    /**
-     * Process and normalize records
-     */
-    function processRecords(records) {
-        console.log('CSV Handler: Processing and normalizing', records.length, 'records');
-        
-        const processedRecords = records.map(function(record, index) {
-            try {
-                return normalizeRecord(record, index);
+                // Build AJAX parameters
+                const ajaxParams = window.Factory.BuildAjaxParamToDownloadVFormRecordTypeData(
+                    "orion-discard",
+                    this.config.site,
+                    this.config.year,
+                    "get_data_from_vForm_recordType"
+                );
+                
+                console.log('CSV Handler: AJAX parameters built:', ajaxParams);
+                
+                // Make API call with Promise wrapper for better error handling
+                const response = await this.makeApiCall(ajaxParams);
+                await this.handleApiSuccess(response, fieldId, fieldName);
+                
             } catch (error) {
-                console.warn(`CSV Handler: Error processing record ${index}:`, error);
-                // Return a minimal valid record
-                return {
-                    id: 'error_' + index,
-                    status: '❌',
-                    field: '',
-                    range_val: '',
-                    row_val: '',
-                    plot_id: '',
-                    subplot_id: '',
-                    matid: '',
-                    barcd: 'ERROR_' + index,
-                    _error: error.message
-                };
+                console.error('CSV Handler: Load error:', error);
+                
+                // Implement retry logic
+                if (retryCount < this.config.retryAttempts) {
+                    console.log(`CSV Handler: Retrying in ${this.config.retryDelay}ms...`);
+                    setTimeout(() => {
+                        this.loadFieldData(fieldId, fieldName, retryCount + 1);
+                    }, this.config.retryDelay);
+                } else {
+                    this.handleApiError(error, fieldId, fieldName);
+                }
+            } finally {
+                this.isLoading = false;
+                this.showLoadingIndicator(false);
             }
-        });
-        
-        console.log('CSV Handler: Record processing complete');
-        return processedRecords;
-    }
-    
-    /**
-     * Normalize individual record
-     */
-    function normalizeRecord(record, index) {
-        // Generate unique ID if missing
-        const id = record.id || 
-                   record.record_id || 
-                   record.post_id || 
-                   ('record_' + Date.now() + '_' + index);
-        
-        // Normalize all fields with proper defaults
-        return {
-            id: id,
-            status: record.status || window.csvProcessingConfig.defaultStatus,
-            field: String(record.field || '').trim(),
-            range_val: String(record.range_val || record.range || '').trim(),
-            row_val: String(record.row_val || record.row || '').trim(),
-            plot_id: String(record.plot_id || '').trim(),
-            subplot_id: String(record.subplot_id || '').trim(),
-            matid: String(record.matid || '').trim(),
-            barcd: String(record.barcd || record.barcode || '').trim(),
-            
-            // Additional metadata
-            _original: record,
-            _processed_at: new Date().toISOString()
-        };
-    }
-    
-    // ============================================================================
-    // TABLE INTEGRATION SYSTEM
-    // ============================================================================
-    
-    /**
-     * Update table with processed data
-     */
-    function updateTableWithProcessedData(data, fieldName) {
-        console.log('CSV Handler: Updating table with', data.length, 'processed records');
-        
-        // Verify table manager availability
-        if (!verifyTableManager()) {
-            throw new Error('Gestor de tabla no disponible');
         }
         
-        try {
-            // Update table via centralized manager
-            const updateResult = window.discardsTableManager.updateTableData(data);
+        /**
+         * Promise-based API call wrapper
+         */
+        makeApiCall(ajaxParams) {
+            return new Promise((resolve, reject) => {
+                window.ajax_getDataFrom_vFromRecordType(
+                    ajaxParams,
+                    window.HTTP_METHODS.POST,
+                    resolve,   // Success callback
+                    reject,    // Error callback
+                    () => {}   // Complete callback (handled in finally)
+                );
+            });
+        }
+        
+        /**
+         * Handle successful API response with optimized processing
+         */
+        async handleApiSuccess(response, fieldId, fieldName) {
+            console.log('CSV Handler: API success for field:', fieldId);
             
-            if (updateResult) {
+            try {
+                const processedData = await this.processApiResponse(response, fieldName);
+                await this.updateTableWithData(processedData, fieldName);
+                
+                this.showMessage(`✅ Datos cargados: ${processedData.length} registros`, 'success');
+                
+            } catch (error) {
+                console.error('CSV Handler: Processing error:', error);
+                this.showMessage(`Error al procesar datos: ${error.message}`, 'error');
+            }
+        }
+        
+        /**
+         * Enhanced error handling with user-friendly messages
+         */
+        handleApiError(error, fieldId, fieldName) {
+            const errorMessage = this.getErrorMessage(error);
+            console.error('CSV Handler: API error for field:', fieldId, errorMessage);
+            
+            this.showMessage(`Error al cargar datos de "${fieldName}": ${errorMessage}`, 'error');
+        }
+        
+        /**
+         * Extract user-friendly error messages
+         */
+        getErrorMessage(error) {
+            if (error?.responseJSON?.message) return error.responseJSON.message;
+            if (error?.message) return error.message;
+            if (typeof error === 'string') return error;
+            return 'Error desconocido del servidor';
+        }
+    
+        
+        /**
+         * Setup optimized data processing configuration
+         */
+        setupDataProcessing() {
+            console.log('CSV Handler: Setting up optimized data processing');
+            
+            // Configure processing parameters
+            window.csvProcessingConfig = {
+                maxRecords: this.config.maxRecords,
+                requiredFields: ['id', 'barcd'],
+                defaultStatus: this.config.defaultStatus,
+                timeoutMs: 30000
+            };
+            
+            console.log('CSV Handler: Data processing setup complete');
+        }
+        
+        /**
+         * Process API response with memory-efficient handling and post_id validation
+         */
+        async processApiResponse(response, fieldName) {
+            console.log('CSV Handler: Processing API response with post_id validation');
+            
+            try {
+                // Extract and validate data
+                const rawRecords = this.extractDataFromResponse(response);
+                this.validateExtractedData(rawRecords);
+                
+                // Process records in chunks for better performance
+                const processedData = await this.processRecordsInChunks(rawRecords);
+                
+                // Validate post_id integrity in processed data
+                const integrityCheck = this.validatePostIdIntegrity(processedData);
+                if (!integrityCheck.valid) {
+                    console.warn('CSV Handler: Data integrity issues detected:', integrityCheck.issues);
+                    this.showMessage(`⚠️ Se detectaron ${integrityCheck.issues.length} problemas de integridad de datos`, 'warning');
+                }
+                
+                // Store processed data
+                this.csvData = processedData;
+                
+                console.log('CSV Handler: Data processing completed successfully');
+                console.log('CSV Handler: Sample processed record:', processedData[0]);
+                
+                return processedData;
+                
+            } catch (error) {
+                console.error('CSV Handler: Data processing error:', error);
+                throw error;
+            }
+        }
+        
+        /**
+         * Extract data from various response formats efficiently
+         */
+        extractDataFromResponse(response) {
+            console.log('CSV Handler: Extracting data from response');
+            
+            // Define extraction strategies
+            const extractors = [
+                r => r?.data?.csv_content,
+                r => r?.csv_content,
+                r => r?.data,
+                r => Array.isArray(r) ? r : null
+            ];
+            
+            let records = null;
+            
+            // Try each extraction strategy
+            for (const extractor of extractors) {
+                records = extractor(response);
+                if (records) break;
+            }
+            
+            if (!records) {
+                throw new Error('Formato de respuesta no reconocido');
+            }
+            
+            // Handle string data (parse JSON if needed)
+            if (typeof records === 'string') {
+                try {
+                    records = JSON.parse(records);
+                } catch (parseError) {
+                    throw new Error('Error al analizar datos JSON: ' + parseError.message);
+                }
+            }
+            
+            console.log('CSV Handler: Extracted', records?.length || 0, 'records');
+            return records;
+        }
+        
+        /**
+         * Validate extracted data with comprehensive checks
+         */
+        validateExtractedData(records) {
+            if (!Array.isArray(records)) {
+                throw new Error('Los datos extraídos no están en formato de array');
+            }
+            
+            if (records.length === 0) {
+                throw new Error('No hay datos disponibles para el campo seleccionado');
+            }
+            
+            if (records.length > this.config.maxRecords) {
+                throw new Error(`Demasiados registros (${records.length}), máximo: ${this.config.maxRecords}`);
+            }
+            
+            console.log('CSV Handler: Data validation passed -', records.length, 'records');
+        }
+        
+        /**
+         * Process records in chunks for better performance and memory usage
+         */
+        async processRecordsInChunks(records, chunkSize = 1000) {
+            console.log('CSV Handler: Processing', records.length, 'records in chunks');
+            
+            const processedRecords = [];
+            
+            for (let i = 0; i < records.length; i += chunkSize) {
+                const chunk = records.slice(i, i + chunkSize);
+                const processedChunk = chunk.map((record, index) => 
+                    this.normalizeRecord(record, i + index)
+                );
+                
+                processedRecords.push(...processedChunk);
+                
+                // Allow UI to breathe between chunks
+                if (processedRecords.length % chunkSize === 0) {
+                    await this.sleep(1);
+                }
+            }
+            
+            console.log('CSV Handler: Record processing complete');
+            return processedRecords;
+        }
+        
+        /**
+         * Normalize individual record with enhanced post_id preservation
+         * CRITICAL: Must preserve post_id and barcode for scanning functionality
+         * NOTE: Barcode is stored internally and not displayed in user interface
+         * IMPORTANT: Handle pre-discarded materials (isDiscarded: true)
+         */
+        normalizeRecord(record, index) {
+            // Enhanced post_id handling - preserve original post_id for scanning
+            const postId = record.post_id || record.id || record.record_id || `record_${index}_${Date.now()}`;
+            const recordId = record.id || record.record_id || postId;
+            
+            // CRITICAL: Extract and preserve barcode for internal scanner functionality
+            // Barcode is hidden from users but essential for scanning operations
+            const internalBarcode = String(record.barcd || record.barcode || '').trim();
+            
+            // IMPORTANT: Handle pre-discarded materials
+            // If isDiscarded is true, set status to ✅ immediately
+            const isAlreadyDiscarded = record.isDiscarded === true || record.isDiscarded === 'true' || record.isDiscarded === 1;
+            const recordStatus = isAlreadyDiscarded ? '✅' : (record.status || this.config.defaultStatus);
+            
+            return {
+                // Primary identifiers - CRITICAL for scanning functionality
+                id: recordId,
+                post_id: record.post_id || postId, // ALWAYS preserve post_id
+                record_id: record.record_id || recordId,
+                
+                // Status and visible display fields
+                status: recordStatus, // Set ✅ for already discarded materials
+                field: String(record.field || '').trim(),
+                range_val: String(record.range_val || record.range || '').trim(),
+                row_val: String(record.row_val || record.row || '').trim(),
+                plot_id: String(record.plot_id || '').trim(),
+                subplot_id: String(record.subplot_id || '').trim(),
+                matid: String(record.matid || '').trim(),
+                
+                // INTERNAL DATA - Hidden from user interface but essential for functionality
+                barcd: internalBarcode, // Internal barcode - hidden from users, used by scanner
+                
+                // Additional metadata for debugging and tracking
+                isDiscarded: isAlreadyDiscarded, // Preserve discarded state
+                _originalPostId: record.post_id, // Keep original for debugging
+                _originalBarcode: record.barcd, // Keep original barcode for debugging
+                _originalIsDiscarded: record.isDiscarded, // Keep original discarded state for debugging
+                _processedAt: new Date().toISOString(),
+                _processingIndex: index,
+                _isInternalData: true, // Flag to identify processed records
+                _wasPreDiscarded: isAlreadyDiscarded // Flag to identify pre-discarded materials
+            };
+        }
+    
+        
+        /**
+         * Update table with processed data efficiently
+         */
+        async updateTableWithData(data, fieldName) {
+            console.log('CSV Handler: Updating table with', data.length, 'processed records');
+            
+            // Verify table manager availability
+            if (!this.verifyTableManager()) {
+                throw new Error('Gestor de tabla no disponible');
+            }
+            
+            try {
+                // Update table via centralized manager
+                const updateResult = window.discardsTableManager.updateTableData(data);
+                
+                if (!updateResult) {
+                    throw new Error('La actualización de la tabla falló');
+                }
+                
                 console.log('CSV Handler: Table update successful');
-                showMessage(`✅ Datos cargados para ${fieldName}: ${data.length} registros`, 'success');
+                this.showDataStatistics(data, fieldName);
                 
-                // Show additional statistics
-                showDataStatistics(data, fieldName);
+                return true;
                 
-            } else {
-                throw new Error('La actualización de la tabla falló');
+            } catch (error) {
+                console.error('CSV Handler: Table update error:', error);
+                throw new Error('Error al actualizar la tabla: ' + error.message);
+            }
+        }
+        
+        /**
+         * Verify table manager availability and state
+         */
+        verifyTableManager() {
+            if (!window.discardsTableManager) {
+                console.error('CSV Handler: Table manager not available');
+                return false;
             }
             
-        } catch (error) {
-            console.error('CSV Handler: Table update error:', error);
-            throw new Error('Error al actualizar la tabla: ' + error.message);
-        }
-    }
-    
-    /**
-     * Verify table manager is ready
-     */
-    function verifyTableManager() {
-        if (!window.discardsTableManager) {
-            console.error('CSV Handler: Table manager not available');
-            return false;
-        }
-        
-        if (!window.discardsTableManager.isInitialized()) {
-            console.error('CSV Handler: Table manager not initialized');
-            return false;
-        }
-        
-        return true;
-    }
-    
-    /**
-     * Show data statistics
-     */
-    function showDataStatistics(data, fieldName) {
-        const stats = {
-            total: data.length,
-            withBarcodes: data.filter(r => r.barcd && r.barcd.length > 0).length,
-            withoutBarcodes: data.filter(r => !r.barcd || r.barcd.length === 0).length
-        };
-        
-        console.log('CSV Handler: Data statistics:', stats);
-        
-        if (stats.withoutBarcodes > 0) {
-            showMessage(`Advertencia: ${stats.withoutBarcodes} registros sin código de barras`, 'warning');
-        }
-    }
-    
-    /**
-     * Clear table data with verification
-     */
-    function clearTableData() {
-        console.log('CSV Handler: Clearing table data');
-        
-        // Clear local data
-        csvData = [];
-        
-        // Clear table via manager if available
-        if (window.discardsTableManager && window.discardsTableManager.isInitialized()) {
-            const clearResult = window.discardsTableManager.clearTable();
-            if (clearResult) {
-                console.log('CSV Handler: Table cleared successfully');
-            } else {
-                console.warn('CSV Handler: Table clear operation failed');
+            if (!window.discardsTableManager.isInitialized()) {
+                console.error('CSV Handler: Table manager not initialized');
+                return false;
             }
-        } else {
-            console.warn('CSV Handler: Table manager not available for clearing');
+            
+            return true;
         }
-    }
-    
-    // ============================================================================
-    // UI UTILITY FUNCTIONS
-    // ============================================================================
-    
-    /**
-     * Show/hide loading indicator with enhanced styling
-     */
-    function showLoadingIndicator(show) {
-        const loadingId = 'csv-loading-indicator';
         
-        if (show) {
-            // Remove existing indicator
-            $('#' + loadingId).remove();
+        
+        /**
+         * Show optimized data statistics with post_id validation and pre-discarded analysis
+         */
+        showDataStatistics(data, fieldName) {
+            const stats = {
+                total: data.length,
+                withBarcodes: data.filter(r => r.barcd?.length > 0).length,
+                withPostIds: data.filter(r => r.post_id).length,
+                uniquePostIds: new Set(data.map(r => r.post_id).filter(Boolean)).size,
+                preDiscarded: data.filter(r => r._wasPreDiscarded || r.isDiscarded).length,
+                completed: data.filter(r => r.status === '✅').length
+            };
             
-            // Create new loading indicator
-            const $loading = $(`
-                <div id="${loadingId}" class="csv-loading-indicator" style="
-                    text-align: center; 
-                    padding: 20px; 
-                    background: linear-gradient(90deg, #f0f8ff, #e6f3ff);
-                    border: 2px solid #4CAF50; 
-                    border-radius: 8px;
-                    margin: 10px 0; 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    animation: pulse 2s infinite;
-                ">
-                    <div style="font-size: 18px; color: #2E7D32;">
-                        🔄 <strong>Cargando datos...</strong>
+            stats.withoutBarcodes = stats.total - stats.withBarcodes;
+            stats.withoutPostIds = stats.total - stats.withPostIds;
+            stats.pending = stats.total - stats.completed;
+            
+            console.log('CSV Handler: Enhanced data statistics:', stats);
+            
+            // Validation warnings
+            if (stats.withoutBarcodes > 0) {
+                this.showMessage(`⚠️ ${stats.withoutBarcodes} registros sin código de barras`, 'warning');
+            }
+            
+            if (stats.withoutPostIds > 0) {
+                this.showMessage(`⚠️ ${stats.withoutPostIds} registros sin post_id`, 'warning');
+            }
+            
+            if (stats.uniquePostIds !== stats.withPostIds) {
+                this.showMessage(`⚠️ Se detectaron post_ids duplicados`, 'warning');
+            }
+            
+            // Information about pre-discarded materials
+            if (stats.preDiscarded > 0) {
+                this.showMessage(`ℹ️ ${stats.preDiscarded} materiales ya fueron descartados anteriormente`, 'info');
+            }
+            
+            // Success message with enhanced info
+            const completedInfo = stats.completed > 0 ? ` (${stats.completed} ya descartados)` : '';
+            this.showMessage(`✅ ${fieldName}: ${stats.total} registros cargados${completedInfo}`, 'success');
+        }
+        
+        /**
+         * Validate post_id integrity in processed data
+         */
+        validatePostIdIntegrity(data) {
+            console.log('CSV Handler: Validating post_id integrity');
+            
+            const issues = [];
+            const postIdCount = new Map();
+            
+            data.forEach((record, index) => {
+                // Check for missing post_id
+                if (!record.post_id) {
+                    issues.push(`Record ${index}: Missing post_id`);
+                }
+                
+                // Check for duplicate post_ids
+                const postId = record.post_id;
+                if (postId) {
+                    postIdCount.set(postId, (postIdCount.get(postId) || 0) + 1);
+                }
+                
+                // Check barcode-postId relationship
+                if (record.barcd && !record.post_id) {
+                    issues.push(`Record ${index}: Has barcode '${record.barcd}' but no post_id`);
+                }
+            });
+            
+            // Report duplicates
+            for (const [postId, count] of postIdCount.entries()) {
+                if (count > 1) {
+                    issues.push(`Duplicate post_id '${postId}' found ${count} times`);
+                }
+            }
+            
+            if (issues.length > 0) {
+                console.warn('CSV Handler: Post_id integrity issues found:', issues);
+                return { valid: false, issues };
+            }
+            
+            console.log('CSV Handler: Post_id integrity validation passed');
+            return { valid: true, issues: [] };
+        }
+        
+        /**
+         * Clear data efficiently with proper cleanup
+         */
+        clearData() {
+            console.log('CSV Handler: Clearing data');
+            
+            // Clear local data
+            this.csvData = [];
+            
+            // Clear table via manager if available
+            if (window.discardsTableManager?.isInitialized?.()) {
+                const clearResult = window.discardsTableManager.clearTable();
+                if (!clearResult) {
+                    console.warn('CSV Handler: Table clear operation failed');
+                }
+            }
+        }
+        
+        /**
+         * Cancel all pending operations
+         */
+        cancelPendingOperations() {
+            if (this.loadingTimeout) {
+                clearTimeout(this.loadingTimeout);
+                this.loadingTimeout = null;
+            }
+            
+            this.isLoading = false;
+            this.showLoadingIndicator(false);
+        }
+    
+        
+        /**
+         * Show/hide optimized loading indicator
+         */
+        showLoadingIndicator(show) {
+            const loadingId = 'csv-loading-indicator';
+            
+            if (show) {
+                // Remove existing indicator
+                $('#' + loadingId).remove();
+                
+                // Create optimized loading indicator
+                const $loading = $(`
+                    <div id="${loadingId}" class="csv-loading" style="
+                        text-align: center; 
+                        padding: 15px; 
+                        background: linear-gradient(90deg, #f8f9fa, #e9ecef);
+                        border: 2px solid #28a745; 
+                        border-radius: 6px;
+                        margin: 10px 0; 
+                        animation: cssload-pulse 1.5s infinite;
+                    ">
+                        <div style="font-size: 16px; color: #155724; font-weight: 600;">
+                            🔄 Cargando datos...
+                        </div>
+                        <div style="font-size: 12px; color: #6c757d; margin-top: 3px;">
+                            Procesando registros
+                        </div>
                     </div>
-                    <div style="font-size: 14px; color: #555; margin-top: 5px;">
-                        Por favor espere mientras se cargan los registros
-                    </div>
-                </div>
-            `);
-            
-            // Insert before table
-            $('#discards-table').before($loading);
-            
-            // Add CSS animation if not already present
+                `);
+                
+                $('#discards-table').before($loading);
+                this.ensureLoadingStyles();
+                
+            } else {
+                $('#' + loadingId).fadeOut(300, function() { $(this).remove(); });
+            }
+        }
+        
+        /**
+         * Ensure loading styles are present
+         */
+        ensureLoadingStyles() {
             if (!$('#csv-loading-styles').length) {
                 $('head').append(`
                     <style id="csv-loading-styles">
-                        @keyframes pulse {
-                            0% { opacity: 1; }
+                        @keyframes cssload-pulse {
+                            0%, 100% { opacity: 1; }
                             50% { opacity: 0.7; }
-                            100% { opacity: 1; }
                         }
                     </style>
                 `);
             }
+        }
+        
+        /**
+         * Enhanced message system with consistent styling
+         */
+        showMessage(message, type = 'info') {
+            console.log(`CSV Handler [${type.toUpperCase()}]: ${message}`);
             
-        } else {
-            // Remove loading indicator with fade effect
-            $('#' + loadingId).fadeOut(500, function() {
-                $(this).remove();
-            });
-        }
-    }
-    
-    /**
-     * Show message to user with enhanced functionality
-     */
-    function showMessage(message, type = 'info') {
-        console.log(`CSV Handler Message [${type}]: ${message}`);
-        
-        // Use global message function if available
-        if (typeof window.showMessage === 'function') {
-            window.showMessage(message, type);
-        } else if (typeof window.orionDiscardApp?.showMessage === 'function') {
-            window.orionDiscardApp.showMessage(message, type);
-        } else {
-            // Enhanced fallback notification system
-            showFallbackMessage(message, type);
-        }
-    }
-    
-    /**
-     * Fallback message system
-     */
-    function showFallbackMessage(message, type) {
-        const alertClass = type === 'error' ? 'alert-danger' : 
-                           type === 'success' ? 'alert-success' : 
-                           type === 'warning' ? 'alert-warning' : 'alert-info';
-        
-        const icon = type === 'error' ? '❌' : 
-                    type === 'success' ? '✅' : 
-                    type === 'warning' ? '⚠️' : 'ℹ️';
-        
-        const $alert = $(`
-            <div class="alert ${alertClass} alert-dismissible fade show csv-message" role="alert" style="
-                margin: 10px 0; 
-                border-radius: 6px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            ">
-                <strong>${icon}</strong> ${message}
-                <button type="button" class="btn-close" onclick="$(this).parent().fadeOut();" style="
-                    background: none;
-                    border: none;
-                    font-size: 18px;
-                    float: right;
-                    cursor: pointer;
-                ">&times;</button>
-            </div>
-        `);
-        
-        // Find best container for message
-        let $container = $('#csv-messages');
-        if ($container.length === 0) {
-            $container = $('#vform-container');
-        }
-        if ($container.length === 0) {
-            $container = $('body');
-        }
-        
-        $container.prepend($alert);
-        
-        // Auto-remove after delay
-        const delay = type === 'error' ? 10000 : type === 'success' ? 5000 : 7000;
-        setTimeout(function() {
-            $alert.fadeOut(function() {
-                $(this).remove();
-            });
-        }, delay);
-    }
-    
-    // ============================================================================
-    // DIAGNOSTIC AND UTILITY FUNCTIONS
-    // ============================================================================
-    
-    /**
-     * Get current handler state for debugging
-     */
-    function getHandlerState() {
-        return {
-            isLoading: isLoading,
-            currentFieldId: currentFieldId,
-            csvDataLength: csvData.length,
-            dependencies: getDependencyState(),
-            tableManager: {
-                available: typeof window.discardsTableManager !== 'undefined',
-                initialized: window.discardsTableManager ? window.discardsTableManager.isInitialized() : false
+            // Try global message systems first
+            if (window.showMessage) {
+                window.showMessage(message, type);
+                return;
             }
-        };
-    }
-    
-    /**
-     * Run comprehensive diagnostic
-     */
-    function runDiagnostic() {
-        console.group('🔍 CSV HANDLER DIAGNOSTIC');
-        
-        console.log('📋 Current State:', getHandlerState());
-        console.log('📊 Data Info:', {
-            recordCount: csvData.length,
-            sampleRecord: csvData.length > 0 ? csvData[0] : null
-        });
-        console.log('🔧 Configuration:', window.csvProcessingConfig);
-        
-        console.groupEnd();
-        
-        return getHandlerState();
-    }
-    
-    // ============================================================================
-    // INITIALIZATION TRIGGER
-    // ============================================================================
-    
-    // Initialize with delay to ensure DOM and dependencies are ready
-    setTimeout(initializeCsvHandler, 1200);
-    
-    console.log('CSV Handler: Module loaded, initialization scheduled');
-    
-    // ============================================================================
-    // GLOBAL EXPORTS
-    // ============================================================================
-    
-    // Export comprehensive API for external access and debugging
-    window.csvHandler = {
-        // Data access
-        getCsvData: function() { return csvData.slice(); }, // Return copy
-        getCurrentFieldId: function() { return currentFieldId; },
-        getDataCount: function() { return csvData.length; },
-        
-        // Operations
-        loadFieldData: loadFieldData,
-        clearTableData: clearTableData,
-        updateTable: function() { 
-            if (csvData.length > 0) {
-                updateTableWithProcessedData(csvData, 'Current Field');
+            
+            if (window.orionDiscardApp?.showMessage) {
+                window.orionDiscardApp.showMessage(message, type);
+                return;
             }
+            
+            // Enhanced fallback system
+            this.showFallbackMessage(message, type);
+        }
+        
+        /**
+         * Optimized fallback message system
+         */
+        showFallbackMessage(message, type) {
+            const config = {
+                error: { class: 'alert-danger', icon: '❌', delay: 8000 },
+                success: { class: 'alert-success', icon: '✅', delay: 4000 },
+                warning: { class: 'alert-warning', icon: '⚠️', delay: 6000 },
+                info: { class: 'alert-info', icon: 'ℹ️', delay: 5000 }
+            };
+            
+            const { class: alertClass, icon, delay } = config[type] || config.info;
+            
+            const $alert = $(`
+                <div class="alert ${alertClass} csv-message" style="
+                    margin: 8px 0; 
+                    padding: 10px 15px;
+                    border-radius: 4px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    position: relative;
+                ">
+                    <strong>${icon}</strong> ${message}
+                    <button type="button" class="close" style="
+                        position: absolute;
+                        top: 8px;
+                        right: 12px;
+                        background: none;
+                        border: none;
+                        font-size: 16px;
+                        cursor: pointer;
+                        opacity: 0.7;
+                    ">&times;</button>
+                </div>
+            `);
+            
+            // Handle close button
+            $alert.find('.close').on('click', () => $alert.fadeOut(200, () => $alert.remove()));
+            
+            // Find best container
+            const $container = $('#csv-messages').length ? $('#csv-messages') : 
+                              $('#vform-container').length ? $('#vform-container') : $('body');
+            
+            $container.prepend($alert);
+            
+            // Auto-remove with fade
+            setTimeout(() => $alert.fadeOut(400, () => $alert.remove()), delay);
+        }
+        
+        /**
+         * Utility: debounce function for performance optimization
+         */
+        debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func.apply(this, args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        /**
+         * Utility: sleep function for yielding control
+         */
+        sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        /**
+         * Get current handler state for debugging
+         */
+        getState() {
+            return {
+                isLoading: this.isLoading,
+                currentFieldId: this.currentFieldId,
+                dataCount: this.csvData.length,
+                isInitialized: this.isInitialized,
+                config: this.config,
+                dependencies: Object.fromEntries(this.dependencies)
+            };
+        }
+        
+        /**
+         * Run comprehensive diagnostic with post_id validation
+         */
+        runDiagnostic() {
+            console.group('🔍 CSV HANDLER COMPREHENSIVE DIAGNOSTIC');
+            
+            // Basic state
+            console.log('📋 Handler State:', this.getState());
+            console.log('📊 Data Count:', this.csvData.length);
+            console.log('🔧 Dependencies Ready:', this.areDependenciesReady());
+            
+            // Sample data analysis
+            if (this.csvData.length > 0) {
+                console.log('📄 Sample Record (First):', this.csvData[0]);
+                console.log('📄 Sample Record (Last):', this.csvData[this.csvData.length - 1]);
+                
+                // Post_id analysis
+                this.analyzePostIds();
+                
+                // Barcode analysis
+                this.analyzeBarcodes();
+            }
+            
+            // Table Manager compatibility check
+            this.checkTableManagerCompatibility();
+            
+            console.groupEnd();
+            return this.getState();
+        }
+        
+        /**
+         * Analyze post_id distribution and integrity
+         */
+        analyzePostIds() {
+            console.group('🆔 POST_ID ANALYSIS');
+            
+            const postIds = this.csvData.map(r => r.post_id).filter(Boolean);
+            const uniquePostIds = new Set(postIds);
+            const duplicates = postIds.filter((id, index) => postIds.indexOf(id) !== index);
+            
+            console.log('Total records:', this.csvData.length);
+            console.log('Records with post_id:', postIds.length);
+            console.log('Unique post_ids:', uniquePostIds.size);
+            console.log('Duplicate post_ids:', new Set(duplicates).size);
+            
+            if (duplicates.length > 0) {
+                console.warn('Duplicate post_ids found:', [...new Set(duplicates)]);
+            }
+            
+            // Sample post_ids
+            console.log('Sample post_ids:', Array.from(uniquePostIds).slice(0, 5));
+            
+            console.groupEnd();
+        }
+        
+        /**
+         * Analyze barcode distribution and mapping
+         */
+        analyzeBarcodes() {
+            console.group('� BARCODE ANALYSIS');
+            
+            const withBarcodes = this.csvData.filter(r => r.barcd?.length > 0);
+            const withoutBarcodes = this.csvData.filter(r => !r.barcd || r.barcd.length === 0);
+            const barcodePostIdMap = new Map();
+            
+            withBarcodes.forEach(record => {
+                barcodePostIdMap.set(record.barcd, record.post_id);
+            });
+            
+            console.log('Records with barcodes:', withBarcodes.length);
+            console.log('Records without barcodes:', withoutBarcodes.length);
+            console.log('Unique barcodes:', barcodePostIdMap.size);
+            
+            // Sample barcode-postId mapping
+            const sampleMappings = Array.from(barcodePostIdMap.entries()).slice(0, 3);
+            console.table(sampleMappings.map(([barcode, postId]) => ({ barcode, postId })));
+            
+            console.groupEnd();
+        }
+        
+        /**
+         * Check compatibility with Table Manager
+         */
+        checkTableManagerCompatibility() {
+            console.group('🔗 TABLE MANAGER COMPATIBILITY CHECK');
+            
+            let isCompatible = true;
+            const issues = [];
+            
+            // Check if Table Manager exists
+            if (!window.discardsTableManager) {
+                issues.push('Table Manager not available');
+                isCompatible = false;
+            } else {
+                console.log('✅ Table Manager available');
+                
+                // Check if Table Manager is initialized
+                if (!window.discardsTableManager.isInitialized()) {
+                    issues.push('Table Manager not initialized');
+                    isCompatible = false;
+                } else {
+                    console.log('✅ Table Manager initialized');
+                    
+                    // Test data format compatibility
+                    if (this.csvData.length > 0) {
+                        const sampleRecord = this.csvData[0];
+                        const requiredFields = ['id', 'post_id', 'barcd', 'status'];
+                        const missingFields = requiredFields.filter(field => !(field in sampleRecord));
+                        
+                        if (missingFields.length > 0) {
+                            issues.push(`Missing required fields: ${missingFields.join(', ')}`);
+                            isCompatible = false;
+                        } else {
+                            console.log('✅ Data format compatible');
+                        }
+                    }
+                }
+            }
+            
+            if (isCompatible) {
+                console.log('✅ Full compatibility confirmed');
+            } else {
+                console.error('❌ Compatibility issues found:', issues);
+            }
+            
+            console.groupEnd();
+            return { compatible: isCompatible, issues };
+        }
+        
+        /**
+         * Test scanning functionality simulation
+         */
+        testScanningFunctionality() {
+            console.group('🔬 SCANNING FUNCTIONALITY TEST');
+            
+            if (this.csvData.length === 0) {
+                console.warn('No data available for testing');
+                console.groupEnd();
+                return false;
+            }
+            
+            // Get a record with barcode for testing
+            const testRecord = this.csvData.find(r => r.barcd && r.post_id);
+            
+            if (!testRecord) {
+                console.warn('No suitable record found for testing (needs barcode and post_id)');
+                console.groupEnd();
+                return false;
+            }
+            
+            console.log('Test record:', {
+                post_id: testRecord.post_id,
+                barcode: testRecord.barcd,
+                current_status: testRecord.status
+            });
+            
+            // Simulate Table Manager calls
+            if (window.discardsTableManager) {
+                console.log('Testing updateRowStatusById...');
+                const byIdResult = window.discardsTableManager.updateRowStatusById(testRecord.post_id, '✅');
+                console.log('updateRowStatusById result:', byIdResult);
+                
+                console.log('Testing updateRowStatus (by barcode)...');
+                const byBarcodeResult = window.discardsTableManager.updateRowStatus(testRecord.barcd, '❌');
+                console.log('updateRowStatus result:', byBarcodeResult);
+                
+                console.log('Testing findByBarcode...');
+                const foundRecords = window.discardsTableManager.findByBarcode(testRecord.barcd);
+                console.log('findByBarcode result:', foundRecords);
+            }
+            
+            console.log('✅ Scanning functionality test completed');
+            console.groupEnd();
+            return true;
+        }
+        
+        /**
+         * Enhanced public API for external access with validation methods
+         * NOTE: Barcode data is handled internally and hidden from user interface
+         */
+        getPublicAPI() {
+            return {
+                // Data access (read-only)
+                getCsvData: () => [...this.csvData],
+                getCurrentFieldId: () => this.currentFieldId,
+                getDataCount: () => this.csvData.length,
+                isLoading: () => this.isLoading,
+                isInitialized: () => this.isInitialized,
+                
+                // Operations
+                loadFieldData: this.loadFieldData.bind(this),
+                clearData: this.clearData.bind(this),
+                
+                // State and diagnostics
+                getState: this.getState.bind(this),
+                runDiagnostic: this.runDiagnostic.bind(this),
+                
+                // Enhanced validation and testing methods
+                validatePostIdIntegrity: (data) => this.validatePostIdIntegrity(data || this.csvData),
+                analyzePostIds: this.analyzePostIds.bind(this),
+                analyzeBarcodes: this.analyzeBarcodes.bind(this),
+                checkTableManagerCompatibility: this.checkTableManagerCompatibility.bind(this),
+                testScanningFunctionality: this.testScanningFunctionality.bind(this),
+                
+                // Utilities
+                showMessage: this.showMessage.bind(this),
+                
+                // Quick validation helpers
+                hasValidData: () => this.csvData.length > 0,
+                getPostIdCount: () => this.csvData.filter(r => r.post_id).length,
+                getBarcodeCount: () => this.csvData.filter(r => r.barcd?.length > 0).length,
+                getSampleRecord: () => this.csvData.length > 0 ? this.csvData[0] : null,
+                
+                // SECURITY: Methods for safe barcode handling (internal use only)
+                getInternalBarcodeCount: () => this.csvData.filter(r => r.barcd?.length > 0).length,
+                validateInternalBarcode: (barcode) => {
+                    // Only for internal scanner validation - not exposed to UI
+                    return this.csvData.some(r => r.barcd === barcode);
+                }
+            };
+        }
+    }
+    
+    // ============================================================================
+    // INITIALIZATION AND GLOBAL EXPORTS
+    // ============================================================================
+    
+    // Create and initialize handler instance
+    const csvHandler = new CSVHandler();
+    
+    // Initialize with optimized timing
+    setTimeout(async () => {
+        const success = await csvHandler.initialize();
+        if (success) {
+            console.log('CSV Handler: Optimized initialization completed successfully');
+        } else {
+            console.error('CSV Handler: Initialization failed');
+        }
+    }, 800); // Reduced delay for faster initialization
+    
+    // Export optimized global API
+    window.csvHandler = csvHandler.getPublicAPI();
+    
+    // Enhanced global exports for debugging
+    window.csvHandlerDev = {
+        instance: csvHandler,
+        testAll: async function() {
+            console.group('🧪 CSV HANDLER COMPREHENSIVE TEST SUITE');
+            
+            console.log('1️⃣ Testing CSV Handler state...');
+            const state = window.csvHandler.getState();
+            console.log('State:', state);
+            
+            console.log('2️⃣ Testing Table Manager compatibility...');
+            const compatibility = window.csvHandler.checkTableManagerCompatibility();
+            console.log('Compatibility:', compatibility);
+            
+            if (window.csvHandler.hasValidData()) {
+                console.log('3️⃣ Testing post_id integrity...');
+                const integrity = window.csvHandler.validatePostIdIntegrity();
+                console.log('Integrity:', integrity);
+                
+                console.log('4️⃣ Analyzing post_ids...');
+                window.csvHandler.analyzePostIds();
+                
+                console.log('5️⃣ Analyzing barcodes...');
+                window.csvHandler.analyzeBarcodes();
+                
+                console.log('6️⃣ Testing scanning functionality...');
+                const scanTest = window.csvHandler.testScanningFunctionality();
+                console.log('Scan test result:', scanTest);
+            } else {
+                console.log('⚠️ No data available for advanced testing');
+                console.log('💡 Load data by selecting a field first');
+            }
+            
+            console.log('✅ Test suite completed');
+            console.groupEnd();
+            
+            return {
+                state,
+                compatibility,
+                hasData: window.csvHandler.hasValidData(),
+                postIdCount: window.csvHandler.getPostIdCount(),
+                barcodeCount: window.csvHandler.getBarcodeCount(),
+                sampleRecord: window.csvHandler.getSampleRecord()
+            };
         },
         
-        // State management
-        isLoading: function() { return isLoading; },
-        getHandlerState: getHandlerState,
-        
-        // Diagnostic
-        runDiagnostic: runDiagnostic,
-        getDependencyState: getDependencyState,
-        
-        // Utility
-        showMessage: showMessage,
-        showLoadingIndicator: showLoadingIndicator
+        quickTest: function() {
+            console.log('🚀 CSV Handler Quick Test');
+            console.log('Is initialized:', window.csvHandler.isInitialized());
+            console.log('Data count:', window.csvHandler.getDataCount());
+            console.log('Current field:', window.csvHandler.getCurrentFieldId());
+            console.log('Post_id count:', window.csvHandler.getPostIdCount());
+            console.log('Barcode count:', window.csvHandler.getBarcodeCount());
+            
+            if (window.csvHandler.hasValidData()) {
+                console.log('Sample record:', window.csvHandler.getSampleRecord());
+            }
+            
+            return window.csvHandler.getState();
+        }
     };
     
-    console.log('CSV Handler: Global exports configured');
+    console.log('CSV Handler: Optimized module loaded successfully');
+    console.log('🔧 Use csvHandlerDev.testAll() for comprehensive testing');
+    console.log('🔧 Use csvHandlerDev.quickTest() for quick validation');
 });

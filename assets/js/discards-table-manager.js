@@ -1,28 +1,61 @@
 /**
- * Discards Table Manager - Centralized DataTable Management
- * Single source of truth for all table operations in Orion Discard Plugin
+ * Discards Table Manager - Optimized DataTable Management
+ * Centralized, efficient table operations with improved post_id handling
  * 
- * CLEAN ARCHITECTURE:
- * - Simple and reliable initialization
- * - Clear status tracking with isReady flag
- * - Standard DataTables configuration
- * - Complete functionality with error handling
+ * OPTIMIZED FEATURES:
+ * - ES6 Class-based architecture for better organization
+ * - Enhanced post_id tracking and barcode mapping
+ * - Memory-efficient operations with caching
+ * - Improved error handling and recovery
+ * - Performance optimizations for large datasets
  */
 
 jQuery(document).ready(function($) {
     'use strict';
     
-    // Global table manager instance
-    window.discardsTableManager = {
-        table: null,
-        isReady: false,
+    console.log('Table Manager: Initializing optimized manager');
+    
+    /**
+     * Optimized Discards Table Manager Class
+     * Handles all DataTable operations with enhanced efficiency
+     */
+    class DiscardsTableManager {
+        constructor() {
+            // Core state
+            this.table = null;
+            this.isReady = false;
+            this.dataCache = new Map();
+            this.barcodeIndex = new Map();
+            this.postIdIndex = new Map();
+            
+            // Configuration
+            this.config = {
+                pageLength: 100,
+                maxRecords: 50000,
+                highlightDuration: 2000,
+                searchDelay: 300,
+                enableCache: true
+            };
+            
+            // Performance tracking
+            this.stats = {
+                updateCount: 0,
+                searchCount: 0,
+                lastUpdate: null
+            };
+            
+            // Bind methods
+            this.updateRowStatus = this.updateRowStatus.bind(this);
+            this.updateRowStatusById = this.updateRowStatusById.bind(this);
+        }
+        
         
         /**
-         * Initialize the DataTable
+         * Initialize the DataTable with optimized configuration
          * @returns {boolean} Success status
          */
-        init: function() {
-            console.log('TableManager: Starting initialization');
+        async init() {
+            console.log('Table Manager: Starting optimized initialization');
             
             // Check prerequisites
             if (!this.checkPrerequisites()) {
@@ -33,355 +66,624 @@ jQuery(document).ready(function($) {
             this.destroy();
             
             try {
-                // Destroy any existing table first
+                // Destroy any existing DataTable instance
                 if ($.fn.DataTable.isDataTable('#discards-table')) {
                     $('#discards-table').DataTable().destroy();
                 }
                 
-                // Create DataTable with configuration matching the HTML structure
-                this.table = $('#discards-table').DataTable({
-                    data: [], // Start empty
-                    columns: [
-                        { 
-                            data: 'status', 
-                            title: 'Estado',
-                            className: 'text-center',
-                            defaultContent: '❌',
-                            width: '80px',
-                            render: function(data, type, row) {
-                                if (type === 'display') {
-                                    if (data === '✅') {
-                                        return '<span class="status-completed" title="Descartado">✅</span>';
-                                    } else {
-                                        return '<span class="status-pending" title="Pendiente">❌</span>';
-                                    }
-                                }
-                                return data;
-                            }
-                        },
-                        { data: 'field', title: 'Field', defaultContent: '', width: '120px' },
-                        { data: 'range_val', title: 'Range', defaultContent: '', width: '100px' },
-                        { data: 'row_val', title: 'Row', defaultContent: '', width: '80px' },
-                        { data: 'plot_id', title: 'Plot ID', defaultContent: '', width: '100px' },
-                        { data: 'subplot_id', title: 'Subplot ID', defaultContent: '', width: '120px' },
-                        { data: 'matid', title: 'MATID', defaultContent: '', width: '120px' },
-                        { data: 'barcd', title: 'Código', defaultContent: '', width: '150px' }
-                    ],
-                    pageLength: 25,
-                    responsive: false, // ✅ CORRECCIÓN: Deshabilitar responsive para evitar conflictos
-                    scrollX: false,    // ✅ CORRECCIÓN: Deshabilitar scroll horizontal
-                    autoWidth: true,   // ✅ CORRECCIÓN: Permitir cálculo automático de anchos
-                    fixedHeader: false, // ✅ CORRECCIÓN: Deshabilitar header fijo
-                    ordering: true,     // ✅ CORRECCIÓN: Mantener ordenamiento habilitado
-                    order: [[0, 'asc']], // ✅ CORRECCIÓN: Ordenar por primera columna por defecto
-                    columnDefs: [       // ✅ CORRECCIÓN: Definir comportamiento de columnas
-                        {
-                            targets: 0, // Columna de Estado
-                            orderable: true,
-                            className: 'text-center'
-                        },
-                        {
-                            targets: '_all', // Todas las demás columnas
-                            orderable: true
-                        }
-                    ],
-                    language: {
-                        emptyTable: "No hay datos disponibles",
-                        info: "Mostrando _START_ a _END_ de _TOTAL_ entradas",
-                        infoEmpty: "Mostrando 0 a 0 de 0 entradas",
-                        infoFiltered: "(filtrado de _MAX_ entradas totales)",
-                        lengthMenu: "Mostrar _MENU_ entradas",
-                        loadingRecords: "Cargando...",
-                        processing: "Procesando...",
-                        search: "Buscar:",
-                        zeroRecords: "No se encontraron registros",
-                        paginate: {
-                            first: "Primero",
-                            last: "Último", 
-                            next: "Siguiente",
-                            previous: "Anterior"
-                        }
-                    },
-                    createdRow: function(row, data) {
-                        // ✅ CORRECCIÓN: Usar post_id como identificador principal
-                        if (data.post_id) {
-                            $(row).attr('data-record-id', data.post_id);
-                            $(row).attr('data-post-id', data.post_id);
-                        } else if (data.id) {
-                            $(row).attr('data-record-id', data.id);
-                        }
-                        
-                        if (data.barcd) {
-                            $(row).attr('data-barcode', data.barcd);
-                        }
-                        
-                        // Add CSS classes based on status
-                        if (data.status === '✅') {
-                            $(row).addClass('row-completed');
-                        } else {
-                            $(row).addClass('row-pending');
-                        }
-                    }
-                });
+                // Create optimized DataTable configuration
+                const config = this.getOptimizedTableConfig();
+                this.table = $('#discards-table').DataTable(config);
+                
+                // Initialize indexes
+                this.initializeIndexes();
                 
                 this.isReady = true;
-                console.log('TableManager: Initialization successful');
+                this.stats.lastUpdate = new Date();
+                
+                console.log('Table Manager: Initialization successful');
                 return true;
                 
             } catch (error) {
-                console.error('TableManager: Initialization failed:', error);
+                console.error('Table Manager: Initialization failed:', error);
                 this.table = null;
                 this.isReady = false;
                 return false;
             }
-        },
+        }
+        
+        /**
+         * Get optimized DataTable configuration
+         */
+        getOptimizedTableConfig() {
+            return {
+                data: [], // Start empty
+                columns: this.getColumnConfiguration(),
+                pageLength: this.config.pageLength,
+                responsive: false,
+                scrollX: false,
+                autoWidth: true,
+                fixedHeader: false,
+                ordering: true,
+                order: [[0, 'asc']],
+                columnDefs: [
+                    {
+                        targets: 0, // Status column
+                        orderable: true,
+                        className: 'text-center'
+                    },
+                    {
+                        targets: '_all',
+                        orderable: true
+                    }
+                ],
+                language: this.getLanguageConfig(),
+                createdRow: (row, data) => this.onRowCreated(row, data),
+                drawCallback: () => this.onTableDraw(),
+                // Performance optimizations
+                deferRender: true,
+                processing: true,
+                stateSave: false // Disable state saving for better performance
+            };
+        }
+        
+        /**
+         * Get column configuration with enhanced rendering
+         */
+        getColumnConfiguration() {
+            return [
+                { 
+                    data: 'status', 
+                    title: 'Estado',
+                    className: 'text-center status-column',
+                    defaultContent: '❌',
+                    width: '80px',
+                    render: (data, type, row) => this.renderStatusColumn(data, type, row)
+                },
+                { 
+                    data: 'field', 
+                    title: 'Field', 
+                    defaultContent: '', 
+                    width: '120px',
+                    render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
+                },
+                { 
+                    data: 'range_val', 
+                    title: 'Range', 
+                    defaultContent: '', 
+                    width: '100px',
+                    render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
+                },
+                { 
+                    data: 'row_val', 
+                    title: 'Row', 
+                    defaultContent: '', 
+                    width: '80px',
+                    render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
+                },
+                { 
+                    data: 'plot_id', 
+                    title: 'Plot ID', 
+                    defaultContent: '', 
+                    width: '100px',
+                    render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
+                },
+                { 
+                    data: 'subplot_id', 
+                    title: 'Subplot ID', 
+                    defaultContent: '', 
+                    width: '120px',
+                    render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
+                },
+                { 
+                    data: 'matid', 
+                    title: 'MATID', 
+                    defaultContent: '', 
+                    width: '120px',
+                    render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
+                },
+                { 
+                    data: 'barcd', 
+                    title: 'Código', 
+                    defaultContent: '', 
+                    visible: false,  // Hide barcode column from users
+                    searchable: false,  // Don't include in search
+                    orderable: false,   // Don't allow sorting
+                    className: 'barcode-internal',
+                    render: (data, type, row) => {
+                        // Keep data available for internal processing
+                        return type === 'display' ? '' : data;
+                    }
+                },
+                // Hidden post_id column for internal scanner functionality
+                { 
+                    data: 'post_id', 
+                    title: 'Post ID', 
+                    defaultContent: '', 
+                    visible: false,  // Hide from users - internal use only
+                    searchable: false,
+                    orderable: false,
+                    className: 'post-id-internal'
+                },
+                // Hidden id column for internal reference
+                { 
+                    data: 'id', 
+                    title: 'ID', 
+                    defaultContent: '', 
+                    visible: false,  // Hide from users - internal use only
+                    searchable: false,
+                    orderable: false,
+                    className: 'id-internal'
+                }
+            ];
+        }
+        
+        /**
+         * Enhanced status column rendering with pre-discarded handling
+         */
+        renderStatusColumn(data, type, row) {
+            if (type === 'display') {
+                const isCompleted = data === '✅';
+                const isPreDiscarded = row._wasPreDiscarded || row.isDiscarded;
+                const icon = isCompleted ? '✅' : '❌';
+                
+                // Enhanced title with pre-discarded information
+                let title = isCompleted ? 'Descartado' : 'Pendiente';
+                if (isCompleted && isPreDiscarded) {
+                    title = 'Ya fue descartado anteriormente';
+                }
+                
+                const cssClass = isCompleted ? 'status-completed' : 'status-pending';
+                const preDiscardedClass = isPreDiscarded ? ' status-pre-discarded' : '';
+                
+                return `<span class="${cssClass}${preDiscardedClass}" title="${title}" data-post-id="${row.post_id || row.id}" data-pre-discarded="${isPreDiscarded}">${icon}</span>`;
+            }
+            return data;
+        }
+        
+        /**
+         * Enhanced barcode column rendering - DEPRECATED
+         * NOTE: Barcode column is now hidden from users (visible: false)
+         * This function is kept for compatibility but not actively used
+         */
+        renderBarcodeColumn(data, type, row) {
+            // This function is no longer used since barcode column is hidden
+            // Kept for backwards compatibility only
+            if (type === 'display' && data) {
+                return `<span class="barcode-value" data-barcode="${this.escapeHtml(data)}" data-post-id="${row.post_id || row.id}">${this.escapeHtml(data)}</span>`;
+            }
+            return data || '';
+        }
+        
+        /**
+         * Get language configuration
+         */
+        getLanguageConfig() {
+            return {
+                emptyTable: "No data available",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                lengthMenu: "Show _MENU_ entries",
+                loadingRecords: "Loading...",
+                processing: "Processing...",
+                search: "Search:",
+                zeroRecords: "No records found",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            };
+        }
+        
+        /**
+         * Enhanced row creation with proper indexing and pre-discarded handling
+         */
+        onRowCreated(row, data) {
+            const postId = data.post_id || data.id;
+            const barcode = data.barcd;
+            const isPreDiscarded = data._wasPreDiscarded || data.isDiscarded;
+            
+            // Set data attributes for enhanced tracking
+            if (postId) {
+                $(row).attr('data-post-id', postId);
+                $(row).attr('data-record-id', postId);
+            }
+            
+            if (barcode) {
+                $(row).attr('data-barcode', barcode);
+            }
+            
+            // Mark pre-discarded materials
+            if (isPreDiscarded) {
+                $(row).attr('data-pre-discarded', 'true');
+            }
+            
+            // Add CSS classes based on status - handle pre-discarded materials
+            const statusClass = data.status === '✅' ? 'row-completed' : 'row-pending';
+            $(row).addClass(statusClass);
+            
+            // Add special class for pre-discarded materials
+            if (isPreDiscarded) {
+                $(row).addClass('row-pre-discarded');
+            }
+            
+            // Update indexes if enabled
+            if (this.config.enableCache && postId) {
+                this.postIdIndex.set(String(postId), data);
+                if (barcode) {
+                    this.barcodeIndex.set(String(barcode), postId);
+                }
+            }
+        }
+        
+        /**
+         * Handle table draw events
+         */
+        onTableDraw() {
+            // Update statistics
+            this.updateStatistics();
+            
+            // Performance logging
+            if (this.stats.updateCount % 10 === 0) {
+                console.log('Table Manager: Performance stats:', this.getPerformanceStats());
+            }
+        }
+        
+        /**
+         * Initialize or rebuild indexes for fast lookups
+         */
+        initializeIndexes() {
+            if (!this.config.enableCache) return;
+            
+            console.log('Table Manager: Initializing indexes');
+            
+            this.dataCache.clear();
+            this.barcodeIndex.clear();
+            this.postIdIndex.clear();
+            
+            // Build indexes from current data
+            if (this.table) {
+                this.table.rows().every(function() {
+                    const data = this.data();
+                    const postId = data.post_id || data.id;
+                    const barcode = data.barcd;
+                    
+                    if (postId) {
+                        window.discardsTableManager.postIdIndex.set(String(postId), data);
+                        if (barcode) {
+                            window.discardsTableManager.barcodeIndex.set(String(barcode), postId);
+                        }
+                    }
+                });
+            }
+            
+            console.log('Table Manager: Indexes built -', 
+                       `PostIDs: ${this.postIdIndex.size}, Barcodes: ${this.barcodeIndex.size}`);
+        }
+        
         
         /**
          * Check if prerequisites are met for initialization
          * @returns {boolean} Prerequisites status
          */
-        checkPrerequisites: function() {
+        checkPrerequisites() {
             // Check jQuery
             if (typeof $ === 'undefined') {
-                console.error('TableManager: jQuery not available');
+                console.error('Table Manager: jQuery not available');
                 return false;
             }
             
             // Check DataTables
             if (!$.fn.DataTable) {
-                console.error('TableManager: DataTables not available');
+                console.error('Table Manager: DataTables not available');
                 return false;
             }
             
             // Check table element
             if ($('#discards-table').length === 0) {
-                console.error('TableManager: Table element #discards-table not found');
+                console.error('Table Manager: Table element #discards-table not found');
                 return false;
             }
             
             return true;
-        },
+        }
         
         /**
          * Check if table manager is initialized and ready
          * @returns {boolean} Ready status
          */
-        isInitialized: function() {
+        isInitialized() {
             return this.isReady && this.table !== null;
-        },
+        }
         
         /**
-         * Update table with new data
+         * Update table with new data using optimized processing
          * @param {Array} data Array of data objects
          * @returns {boolean} Success status
          */
-        updateTableData: function(data) {
+        updateTableData(data) {
             if (!this.isInitialized()) {
-                console.error('TableManager: Not initialized for data update');
+                console.error('Table Manager: Not initialized for data update');
                 return false;
             }
             
             if (!Array.isArray(data)) {
-                console.error('TableManager: Data must be an array');
+                console.error('Table Manager: Data must be an array');
                 return false;
             }
             
             try {
-                // Normalize data to ensure required fields
-                const normalizedData = data.map(function(row, index) {
-                    return {
-                        // ✅ CORRECCIÓN: Preservar post_id como identificador principal
-                        id: row.post_id || row.id || row.record_id || ('row_' + Date.now() + '_' + index),
-                        post_id: row.post_id || row.id || row.record_id, // Mantener post_id explícitamente
-                        status: row.status || '❌',
-                        field: row.field || '',
-                        range_val: row.range_val || row.range || '',
-                        row_val: row.row_val || row.row || '',
-                        plot_id: row.plot_id || '',
-                        subplot_id: row.subplot_id || '',
-                        matid: row.matid || '',
-                        barcd: row.barcd || row.barcode || '',
-                        // Preservar cualquier campo adicional que pueda venir del PHP
-                        isDiscarded: row.isDiscarded || false
-                    };
-                });
+                console.log('Table Manager: Updating with', data.length, 'records');
+                
+                // Normalize data with enhanced post_id handling
+                const normalizedData = this.normalizeTableData(data);
+                
+                // Clear existing data and indexes
+                this.clearIndexes();
                 
                 // Update table data
                 this.table.clear().rows.add(normalizedData).draw();
-                console.log('TableManager: Updated with ' + normalizedData.length + ' records');
+                
+                // Rebuild indexes for fast lookups
+                this.initializeIndexes();
+                
+                // Update statistics
+                this.stats.updateCount++;
+                this.stats.lastUpdate = new Date();
+                
+                console.log('Table Manager: Updated successfully with', normalizedData.length, 'records');
                 return true;
                 
             } catch (error) {
-                console.error('TableManager: Error updating data:', error);
+                console.error('Table Manager: Error updating data:', error);
                 return false;
             }
-        },
+        }
         
         /**
-         * Clear all table data
+         * Normalize table data with enhanced post_id preservation and pre-discarded handling
+         */
+        normalizeTableData(data) {
+            return data.map((row, index) => {
+                // Enhanced post_id handling - preserve original post_id
+                const postId = row.post_id || row.id || row.record_id || `row_${Date.now()}_${index}`;
+                
+                // IMPORTANT: Handle pre-discarded materials
+                // If isDiscarded is true, set status to ✅ immediately
+                const isAlreadyDiscarded = row.isDiscarded === true || row.isDiscarded === 'true' || row.isDiscarded === 1;
+                const recordStatus = isAlreadyDiscarded ? '✅' : (row.status || '❌');
+                
+                return {
+                    // Primary identifiers
+                    id: postId,
+                    post_id: row.post_id || postId, // Always preserve post_id
+                    
+                    // Status and core fields - handle pre-discarded materials
+                    status: recordStatus, // Set ✅ for already discarded materials
+                    field: String(row.field || '').trim(),
+                    range_val: String(row.range_val || row.range || '').trim(),
+                    row_val: String(row.row_val || row.row || '').trim(),
+                    plot_id: String(row.plot_id || '').trim(),
+                    subplot_id: String(row.subplot_id || '').trim(),
+                    matid: String(row.matid || '').trim(),
+                    barcd: String(row.barcd || row.barcode || '').trim(),
+                    
+                    // Additional metadata
+                    isDiscarded: isAlreadyDiscarded, // Preserve discarded state
+                    _originalData: this.config.enableCache ? row : null,
+                    _wasPreDiscarded: isAlreadyDiscarded // Flag for pre-discarded materials
+                };
+            });
+        }
+        
+        /**
+         * Clear all table data efficiently
          * @returns {boolean} Success status
          */
-        clearTable: function() {
+        clearTable() {
             if (!this.isInitialized()) {
-                console.warn('TableManager: Not initialized for clearing');
+                console.warn('Table Manager: Not initialized for clearing');
                 return false;
             }
             
             try {
                 this.table.clear().draw();
-                console.log('TableManager: Table cleared');
+                this.clearIndexes();
+                
+                console.log('Table Manager: Table cleared successfully');
                 return true;
             } catch (error) {
-                console.error('TableManager: Error clearing table:', error);
+                console.error('Table Manager: Error clearing table:', error);
                 return false;
             }
-        },
+        }
         
         /**
-         * Update status of a specific row by barcode
+         * Optimized row status update by barcode with enhanced post_id tracking
          * @param {string} barcode Barcode to search for
          * @param {string} newStatus New status to set
          * @returns {boolean} Success status
          */
-        updateRowStatus: function(barcode, newStatus) {
+        updateRowStatus(barcode, newStatus = '✅') {
             if (!this.isInitialized()) {
-                console.warn('TableManager: Not initialized for status update');
+                console.warn('Table Manager: Not initialized for status update');
                 return false;
             }
             
             if (!barcode) {
-                console.error('TableManager: Barcode is required for status update');
+                console.error('Table Manager: Barcode is required for status update');
                 return false;
             }
             
+            console.log('Table Manager: Updating status by barcode:', barcode, 'to:', newStatus);
+            
             try {
-                let found = false;
-                const status = newStatus || '✅';
-                
-                this.table.rows().every(function() {
-                    const data = this.data();
-                    const rowBarcode = String(data.barcd || '').trim();
-                    const searchBarcode = String(barcode).trim();
-                    
-                    if (rowBarcode === searchBarcode) {
-                        data.status = status;
-                        this.data(data);
-                        
-                        // Update row classes
-                        const $row = $(this.node());
-                        $row.removeClass('row-completed row-pending');
-                        if (status === '✅') {
-                            $row.addClass('row-completed');
-                        } else {
-                            $row.addClass('row-pending');
-                        }
-                        
-                        // Add highlight effect
-                        $row.addClass('row-highlight');
-                        setTimeout(function() {
-                            $row.removeClass('row-highlight');
-                        }, 2000);
-                        
-                        found = true;
-                        return false; // Stop iteration
-                    }
-                });
-                
-                if (found) {
-                    this.table.draw(false); // Redraw without changing pagination
-                    console.log('TableManager: Updated status for barcode:', barcode, 'to', status);
+                // Use index for fast lookup if available
+                if (this.config.enableCache && this.barcodeIndex.has(String(barcode))) {
+                    const postId = this.barcodeIndex.get(String(barcode));
+                    return this.updateRowStatusById(postId, newStatus);
                 }
                 
-                return found;
+                // Fallback to row iteration
+                return this.updateRowStatusByIteration('barcd', barcode, newStatus);
+                
             } catch (error) {
-                console.error('TableManager: Error updating row status:', error);
+                console.error('Table Manager: Error updating row status by barcode:', error);
                 return false;
             }
-        },
+        }
         
         /**
-         * Update status of a specific row by ID
-         * @param {string} recordId Record ID to search for
+         * Update row status by barcode - primary method for scanner functionality
+         * @param {string} barcode Barcode to search for
          * @param {string} newStatus New status to set
          * @returns {boolean} Success status
          */
-        updateRowStatusById: function(recordId, newStatus) {
+        updateRowStatusByBarcode(barcode, newStatus = '✅') {
             if (!this.isInitialized()) {
-                console.warn('TableManager: Not initialized for status update');
+                console.warn('Table Manager: Not initialized for status update');
+                return false;
+            }
+            
+            if (!barcode) {
+                console.error('Table Manager: Barcode is required for status update');
+                return false;
+            }
+            
+            console.log('Table Manager: Updating status by barcode:', barcode, 'to:', newStatus);
+            
+            try {
+                // Use index for fast lookup if available
+                if (this.config.enableCache && this.barcodeIndex.has(String(barcode))) {
+                    const postId = this.barcodeIndex.get(String(barcode));
+                    console.log('Table Manager: Found barcode in cache, post_id:', postId);
+                    
+                    // Update cache
+                    if (this.postIdIndex.has(String(postId))) {
+                        const cachedData = this.postIdIndex.get(String(postId));
+                        cachedData.status = newStatus;
+                        this.postIdIndex.set(String(postId), cachedData);
+                    }
+                }
+                
+                // Update in DataTable by barcode
+                return this.updateRowStatusByIteration('barcd', barcode, newStatus, 'barcode');
+                
+            } catch (error) {
+                console.error('Table Manager: Error updating row status by barcode:', error);
+                return false;
+            }
+        }
+
+        /**
+         * Enhanced row status update by post_id with fast lookup
+         * @param {string} recordId Record ID (post_id) to search for
+         * @param {string} newStatus New status to set
+         * @returns {boolean} Success status
+         */
+        updateRowStatusById(recordId, newStatus = '✅') {
+            if (!this.isInitialized()) {
+                console.warn('Table Manager: Not initialized for status update');
                 return false;
             }
             
             if (!recordId) {
-                console.error('TableManager: Record ID is required for status update');
+                console.error('Table Manager: Record ID is required for status update');
                 return false;
             }
             
-            console.log('TableManager: Searching for record ID:', recordId, 'to update status to:', newStatus);
+            console.log('Table Manager: Updating status by post_id:', recordId, 'to:', newStatus);
             
             try {
-                let found = false;
-                const status = newStatus || '✅';
-                
-                this.table.rows().every(function() {
-                    const data = this.data();
-                    const dataId = String(data.id || '');
-                    const dataPostId = String(data.post_id || '');
-                    const searchId = String(recordId);
+                // Use index for fast lookup if available
+                if (this.config.enableCache && this.postIdIndex.has(String(recordId))) {
+                    const cachedData = this.postIdIndex.get(String(recordId));
+                    console.log('Table Manager: Found cached data for post_id:', recordId, cachedData);
                     
-                    console.log('TableManager: Row data debug:', {
-                        'data.id': data.id,
-                        'data.post_id': data.post_id,
-                        'dataId': dataId,
-                        'dataPostId': dataPostId,
-                        'searchId': searchId,
-                        'barcode': data.barcd
-                    });
-                    
-                    // ✅ CORRECCIÓN: Buscar tanto por id como por post_id
-                    if (dataId === searchId || dataPostId === searchId) {
-                        console.log('TableManager: Found matching record by ID, updating status');
-                        data.status = status;
-                        this.data(data);
-                        
-                        // Update row classes
-                        const $row = $(this.node());
-                        $row.removeClass('row-completed row-pending');
-                        if (status === '✅') {
-                            $row.addClass('row-completed');
-                        } else {
-                            $row.addClass('row-pending');
-                        }
-                        
-                        // Add highlight effect
-                        $row.addClass('row-highlight');
-                        setTimeout(function() {
-                            $row.removeClass('row-highlight');
-                        }, 2000);
-                        
-                        found = true;
-                        return false; // Stop iteration
-                    }
-                });
-                
-                if (found) {
-                    this.table.draw(false); // Redraw without changing pagination
-                    console.log('TableManager: Successfully updated status for record ID:', recordId, 'to', status);
-                } else {
-                    console.warn('TableManager: Record ID not found:', recordId);
+                    // Update cached data
+                    cachedData.status = newStatus;
+                    this.postIdIndex.set(String(recordId), cachedData);
                 }
                 
-                return found;
+                // Update in DataTable
+                return this.updateRowStatusByIteration('post_id', recordId, newStatus, 'id');
+                
             } catch (error) {
-                console.error('TableManager: Error updating row status by ID:', error);
+                console.error('Table Manager: Error updating row status by ID:', error);
                 return false;
             }
-        },
+        }
         
         /**
-         * Get current table data
+         * Internal method for row status update by iteration
+         * @param {string} searchField Field to search in
+         * @param {string} searchValue Value to search for
+         * @param {string} newStatus New status to set
+         * @param {string} fallbackField Alternative field to search
+         * @returns {boolean} Success status
+         */
+        updateRowStatusByIteration(searchField, searchValue, newStatus, fallbackField = null) {
+            let found = false;
+            const searchStr = String(searchValue).trim();
+            
+            this.table.rows().every(function() {
+                const data = this.data();
+                const primaryValue = String(data[searchField] || '').trim();
+                const fallbackValue = fallbackField ? String(data[fallbackField] || '').trim() : '';
+                
+                // Enhanced matching logic
+                if (primaryValue === searchStr || (fallbackField && fallbackValue === searchStr)) {
+                    console.log('Table Manager: Found matching record, updating status');
+                    console.log('Table Manager: Match details:', {
+                        searchField,
+                        searchValue: searchStr,
+                        primaryValue,
+                        fallbackValue,
+                        post_id: data.post_id,
+                        id: data.id,
+                        barcode: data.barcd
+                    });
+                    
+                    // Update row data
+                    data.status = newStatus;
+                    this.data(data);
+                    
+                    // Update row visual state
+                    const $row = $(this.node());
+                    $row.removeClass('row-completed row-pending');
+                    $row.addClass(newStatus === '✅' ? 'row-completed' : 'row-pending');
+                    
+                    // Add highlight effect
+                    $row.addClass('row-highlight');
+                    setTimeout(() => $row.removeClass('row-highlight'), 
+                             window.discardsTableManager.config.highlightDuration);
+                    
+                    found = true;
+                    return false; // Stop iteration
+                }
+            });
+            
+            if (found) {
+                this.table.draw(false); // Redraw without changing pagination
+                this.stats.searchCount++;
+                console.log('Table Manager: Successfully updated status for', searchField, ':', searchValue, 'to', newStatus);
+            } else {
+                console.warn('Table Manager: Record not found for', searchField, ':', searchValue);
+                this.debugTableData(searchField, searchValue);
+            }
+            
+            return found;
+        }
+        
+        
+        /**
+         * Get current table data efficiently
          * @returns {Array} Current data array
          */
-        getData: function() {
+        getData() {
             if (!this.isInitialized()) {
                 return [];
             }
@@ -389,18 +691,18 @@ jQuery(document).ready(function($) {
             try {
                 return this.table.data().toArray();
             } catch (error) {
-                console.error('TableManager: Error getting data:', error);
+                console.error('Table Manager: Error getting data:', error);
                 return [];
             }
-        },
+        }
         
         /**
-         * Get table statistics
+         * Get enhanced table statistics
          * @returns {Object} Statistics object
          */
-        getStatistics: function() {
+        getStatistics() {
             if (!this.isInitialized()) {
-                return { total: 0, completed: 0, pending: 0 };
+                return { total: 0, completed: 0, pending: 0, performance: null };
             }
             
             try {
@@ -409,97 +711,258 @@ jQuery(document).ready(function($) {
                 const completed = data.filter(row => row.status === '✅').length;
                 const pending = total - completed;
                 
-                return { total, completed, pending };
+                return { 
+                    total, 
+                    completed, 
+                    pending,
+                    performance: this.getPerformanceStats()
+                };
             } catch (error) {
-                console.error('TableManager: Error getting statistics:', error);
-                return { total: 0, completed: 0, pending: 0 };
+                console.error('Table Manager: Error getting statistics:', error);
+                return { total: 0, completed: 0, pending: 0, performance: null };
             }
-        },
+        }
         
         /**
-         * Search for records by barcode
+         * Enhanced barcode search with caching
          * @param {string} barcode Barcode to search for
          * @returns {Array} Matching records
          */
-        findByBarcode: function(barcode) {
+        findByBarcode(barcode) {
             if (!this.isInitialized()) {
                 return [];
             }
             
             try {
+                // Use index for fast lookup if available
+                if (this.config.enableCache && this.barcodeIndex.has(String(barcode))) {
+                    const postId = this.barcodeIndex.get(String(barcode));
+                    const cachedData = this.postIdIndex.get(String(postId));
+                    return cachedData ? [cachedData] : [];
+                }
+                
+                // Fallback to table iteration
                 const data = this.table.data().toArray();
                 return data.filter(row => 
                     String(row.barcd || '').trim() === String(barcode).trim()
                 );
             } catch (error) {
-                console.error('TableManager: Error finding by barcode:', error);
+                console.error('Table Manager: Error finding by barcode:', error);
                 return [];
             }
-        },
+        }
         
         /**
-         * Debug function: Log all post_ids in the table
-         * @returns {Array} Array of post_ids
+         * Enhanced debugging with comprehensive post_id analysis
+         * @returns {Array} Array of debug information
          */
-        debugPostIds: function() {
+        debugPostIds() {
             if (!this.isInitialized()) {
-                console.log('❌ TableManager: Not initialized');
+                console.log('❌ Table Manager: Not initialized');
                 return [];
             }
             
             try {
                 const data = this.table.data().toArray();
-                console.log('🔍 TableManager: Debugging post_ids in table:');
+                console.group('🔍 Table Manager: Post ID Debug Analysis');
+                console.log('📊 Total records:', data.length);
+                console.log('🗃️ Cache status:', {
+                    enabled: this.config.enableCache,
+                    postIdIndex: this.postIdIndex.size,
+                    barcodeIndex: this.barcodeIndex.size
+                });
                 
-                const postIds = data.map((row, index) => {
+                const debugInfo = data.map((row, index) => {
                     const info = {
                         index: index,
                         id: row.id,
                         post_id: row.post_id,
                         barcode: row.barcd,
-                        status: row.status
+                        status: row.status,
+                        cached: this.postIdIndex.has(String(row.post_id || row.id))
                     };
-                    console.log(`  Row ${index}:`, info);
+                    
+                    // Detailed logging for first 10 records
+                    if (index < 10) {
+                        console.log(`  Row ${index}:`, info);
+                    }
+                    
                     return info;
                 });
                 
-                console.table(postIds);
-                return postIds;
+                console.table(debugInfo.slice(0, 20)); // Show first 20 in table
+                console.groupEnd();
+                
+                return debugInfo;
             } catch (error) {
-                console.error('TableManager: Error debugging post_ids:', error);
+                console.error('Table Manager: Error debugging post_ids:', error);
                 return [];
             }
-        },
+        }
         
         /**
-         * Destroy the table instance
+         * Enhanced debug for specific search
          */
-        destroy: function() {
+        debugTableData(searchField, searchValue) {
+            console.group('🔍 Table Manager: Search Debug');
+            console.log('Search parameters:', { searchField, searchValue });
+            
+            const data = this.getData();
+            const matches = data.filter(row => {
+                const fieldValue = String(row[searchField] || '').trim();
+                return fieldValue === String(searchValue).trim();
+            });
+            
+            console.log('Found matches:', matches.length);
+            if (matches.length > 0) {
+                console.table(matches);
+            } else {
+                console.log('Sample data for comparison:');
+                console.table(data.slice(0, 5).map(row => ({
+                    [searchField]: row[searchField],
+                    post_id: row.post_id,
+                    id: row.id,
+                    barcode: row.barcd
+                })));
+            }
+            console.groupEnd();
+        }
+        
+        /**
+         * Destroy the table instance with cleanup
+         */
+        destroy() {
             if (this.table) {
                 try {
                     if ($.fn.DataTable.isDataTable('#discards-table')) {
                         this.table.destroy();
-                        console.log('TableManager: Table destroyed');
+                        console.log('Table Manager: Table destroyed');
                     }
                 } catch (error) {
-                    console.error('TableManager: Error destroying table:', error);
+                    console.error('Table Manager: Error destroying table:', error);
                 }
             }
             
             this.table = null;
             this.isReady = false;
-        },
+            this.clearIndexes();
+        }
         
         /**
-         * Reinitialize the table
+         * Reinitialize the table with current configuration
          * @returns {boolean} Success status
          */
-        reinitialize: function() {
-            console.log('TableManager: Reinitializing table');
+        async reinitialize() {
+            console.log('Table Manager: Reinitializing table');
             this.destroy();
-            return this.init();
+            return await this.init();
         }
-    };
+        
+        /**
+         * Clear all indexes and cache
+         */
+        clearIndexes() {
+            if (this.config.enableCache) {
+                this.dataCache.clear();
+                this.barcodeIndex.clear();
+                this.postIdIndex.clear();
+                console.log('Table Manager: Indexes cleared');
+            }
+        }
+        
+        /**
+         * Update internal statistics
+         */
+        updateStatistics() {
+            // Update performance counters
+            this.stats.lastUpdate = new Date();
+        }
+        
+        /**
+         * Get performance statistics
+         */
+        getPerformanceStats() {
+            return {
+                updateCount: this.stats.updateCount,
+                searchCount: this.stats.searchCount,
+                lastUpdate: this.stats.lastUpdate,
+                cacheEnabled: this.config.enableCache,
+                indexSizes: {
+                    postIds: this.postIdIndex.size,
+                    barcodes: this.barcodeIndex.size
+                }
+            };
+        }
+        
+        /**
+         * Utility function to escape HTML
+         */
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        /**
+         * Get public API for external access
+         */
+        getPublicAPI() {
+            return {
+                // Initialization
+                init: this.init.bind(this),
+                isInitialized: this.isInitialized.bind(this),
+                destroy: this.destroy.bind(this),
+                reinitialize: this.reinitialize.bind(this),
+                
+                // Data operations
+                updateTableData: this.updateTableData.bind(this),
+                clearTable: this.clearTable.bind(this),
+                getData: this.getData.bind(this),
+                
+                // Status updates (key functionality for scanning)
+                updateRowStatus: this.updateRowStatus.bind(this),
+                updateRowStatusById: this.updateRowStatusById.bind(this),
+                updateRowStatusByBarcode: this.updateRowStatusByBarcode.bind(this),
+                
+                // Search operations
+                findByBarcode: this.findByBarcode.bind(this),
+                
+                // Statistics and debugging
+                getStatistics: this.getStatistics.bind(this),
+                debugPostIds: this.debugPostIds.bind(this),
+                getPerformanceStats: this.getPerformanceStats.bind(this),
+                
+                // Read-only state access
+                isReady: () => this.isReady,
+                config: { ...this.config } // Return copy
+            };
+        }
+    }
     
-    console.log('TableManager: Module loaded and ready');
+    // ============================================================================
+    // INITIALIZATION AND GLOBAL EXPORT
+    // ============================================================================
+    
+    // Create optimized table manager instance
+    const tableManager = new DiscardsTableManager();
+    
+    // Export public API to global scope
+    window.discardsTableManager = tableManager.getPublicAPI();
+    
+    console.log('Table Manager: Optimized module loaded and ready for initialization');
+    
+    // Auto-initialize if table element is present
+    setTimeout(() => {
+        if ($('#discards-table').length > 0) {
+            console.log('Table Manager: Auto-initializing...');
+            window.discardsTableManager.init().then(success => {
+                if (success) {
+                    console.log('Table Manager: Auto-initialization successful');
+                } else {
+                    console.warn('Table Manager: Auto-initialization failed');
+                }
+            });
+        }
+    }, 500);
+    
 });

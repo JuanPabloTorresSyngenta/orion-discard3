@@ -1,5 +1,50 @@
 /* Orion Discard Plugin Styles */
 
+/* Pre-Discarded Materials Styling */
+.row-pre-discarded {
+    background-color: #f8f9fa !important;
+    border-left: 3px solid #28a745 !important;
+}
+
+.row-pre-discarded:hover {
+    background-color: #e9ecef !important;
+}
+
+.status-pre-discarded {
+    opacity: 0.8;
+    font-weight: bold;
+}
+
+/* Already Discarded Highlight (when scanned again) */
+.row-already-discarded-highlight {
+    animation: alreadyDiscardedPulse 3s ease-in-out;
+    border: 2px solid #ffc107 !important;
+}
+
+@keyframes alreadyDiscardedPulse {
+    0% { 
+        background-color: #fff3cd; 
+        border-color: #ffc107;
+    }
+    50% { 
+        background-color: #ffeaa7; 
+        border-color: #f39c12;
+    }
+    100% { 
+        background-color: #f8f9fa; 
+        border-color: #28a745;
+    }
+}
+
+/* Enhanced Row Status Styling */
+.row-completed {
+    background-color: #f8fff8 !important;
+}
+
+.row-pending {
+    background-color: #fff8f8 !important;
+}
+
 /* Table Row Highlight Animation */
 .row-highlight {
     background-color: #d4edda !important;
@@ -25,6 +70,16 @@
 /* Status Column Styling */
 #discards-table .text-center {
     font-size: 16px;
+    font-weight: bold;
+}
+
+.status-completed {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-pending {
+    color: #dc3545;
     font-weight: bold;
 }
 
