@@ -52,6 +52,7 @@ jQuery(document).ready(function($) {
         // Check basic dependencies first
         if (!checkBasicDependencies()) {
             console.error('App: Basic dependencies not met');
+
             return;
         }
         
@@ -70,18 +71,23 @@ jQuery(document).ready(function($) {
                     })
                     .catch((error) => {
                         console.error('App: Failed to load dropdown data:', error);
+
                         showMessage('Error al cargar datos de dropdowns: ' + error.message, 'error');
                     });
                     
                 setupEventHandlers();
+
                 setupBarcodeScanning();
                 
                 state.initializationComplete = true;
+
                 console.log('App: Initialization complete');
+
                 showMessage('Sistema de descarte inicializado correctamente', 'success');
                 
             } else {
                 console.error('App: Failed to initialize - table manager not available');
+
                 showMessage('Error: No se pudo inicializar el sistema de tablas', 'error');
             }
         });
@@ -157,25 +163,38 @@ jQuery(document).ready(function($) {
             }
             
             if (typeof window.discardsTableManager !== 'undefined') {
+
                 const $table = $('#discards-table');
+
                 if ($table.length === 0) {
+
                     console.warn('App: No table element found - skipping table manager initialization');
+                  
                     callback(true);
+
                     return;
                 }
                 
                 if (!window.discardsTableManager.isInitialized()) {
+
                     console.log('App: Initializing table manager');
+
                     try {
                         const initResult = window.discardsTableManager.init();
+
                         if (initResult) {
+
                             console.log('App: Table manager initialized successfully');
+
                             callback(true);
+
                             return;
                         }
                         console.warn('App: Table manager initialization failed, retrying...');
                     } catch (error) {
+
                         console.error('App: Table manager initialization error:', error);
+
                         callback(true);
                         return;
                     }
@@ -200,6 +219,7 @@ jQuery(document).ready(function($) {
      * Find form elements with caching and flexible selectors
      */
     function findFormElements() {
+
         // Return cached elements if available and still valid
         if (state.cachedElements && validateCachedElements()) {
             console.log('App: Using cached form elements');
@@ -219,7 +239,9 @@ jQuery(document).ready(function($) {
         const elements = {};
         
         Object.entries(selectors).forEach(([key, selectorArray]) => {
+
             elements[key] = findElementBySelectors(selectorArray, key);
+            
         });
         
         // Cache the results
@@ -232,14 +254,20 @@ jQuery(document).ready(function($) {
      * Find element using array of selectors
      */
     function findElementBySelectors(selectors, elementType) {
+
         for (const selector of selectors) {
+
             const $element = $(selector);
+
             if ($element.length > 0) {
+
                 console.log(`App: Found ${elementType} element with selector: ${selector}`);
+
                 return $element;
             }
         }
         console.warn(`App: Could not find ${elementType} element with selectors:`, selectors);
+
         return null;
     }
     
@@ -247,6 +275,7 @@ jQuery(document).ready(function($) {
      * Validate cached elements are still in DOM
      */
     function validateCachedElements() {
+
         if (!state.cachedElements) return false;
         
         return Object.values(state.cachedElements).every(element => {
@@ -258,7 +287,9 @@ jQuery(document).ready(function($) {
      * Get or find specific element with caching
      */
     function getElement(type) {
+
         if (!state.cachedElements || !validateCachedElements()) {
+
             state.cachedElements = findFormElements();
         }
         return state.cachedElements[type];
@@ -640,23 +671,30 @@ jQuery(document).ready(function($) {
         
         // Farm selection change - use event delegation
         $container.on('change', 'select[name*="farm"], select[id*="farm"], #farms', function() {
+
             const farmId = $(this).val();
+
             console.log('App: Farm selected:', farmId);
             
             const $sections = getElement('sections');
+
             const $fields = getElement('fields');
+
             const $scanner = getElement('scanner');
             
             // Clear and disable dependent dropdowns
             if ($sections) {
+
                 $sections.empty().append('<option value="">Seleccione una sección</option>').prop('disabled', true);
             }
             if ($fields) {
+
                 $fields.empty().append('<option value="">Seleccione un campo</option>').prop('disabled', true);
             }
             
             // Disable scanner
             if ($scanner) {
+
                 $scanner.prop('disabled', true).val('');
             }
             
@@ -664,17 +702,22 @@ jQuery(document).ready(function($) {
             clearTable();
             
             if (farmId) {
+
                 populateSectionsDropdown(farmId);
+
                 showMessage('Granja seleccionada: ' + $(this).find('option:selected').text(), 'info');
             }
         });
         
         // Section selection change - use event delegation
         $container.on('change', 'select[name*="section"], select[id*="section"], #sections', function() {
+
             const sectionId = $(this).val();
+
             console.log('App: Section selected:', sectionId);
             
             const $fields = getElement('fields');
+
             const $scanner = getElement('scanner');
             
             // Clear and disable dependent dropdown
@@ -692,13 +735,16 @@ jQuery(document).ready(function($) {
             
             if (sectionId) {
                 populateFieldsDropdown(sectionId);
+
                 showMessage('Sección seleccionada: ' + $(this).find('option:selected').text(), 'info');
             }
         });
         
         // Field selection change - use event delegation
         $container.on('change', 'select[name*="field"], select[id*="field"], #fields', function() {
+
             const fieldId = $(this).val();
+
             console.log('App: Field selected:', fieldId);
             
             const $scanner = getElement('scanner');
@@ -706,6 +752,7 @@ jQuery(document).ready(function($) {
             if (fieldId) {
                 // Enable scanner input
                 if ($scanner) {
+
                     $scanner.prop('disabled', false).focus();
                 }
                 showMessage('Campo seleccionado: ' + $(this).find('option:selected').text() + '. Ya puede escanear códigos.', 'success');
@@ -714,6 +761,7 @@ jQuery(document).ready(function($) {
             } else {
                 // Disable scanner
                 if ($scanner) {
+                    
                     $scanner.prop('disabled', true).val('');
                 }
                 clearTable();
@@ -942,16 +990,24 @@ jQuery(document).ready(function($) {
         const updated = window.discardsTableManager.updateRowStatusByBarcode(barcode, '✅');
         
         if (updated) {
+
             console.log('App: Successfully updated row for barcode:', barcode);
+
             showMessage(`✅ Material ${barcode} marcado como descartado exitosamente`, 'success');
             
             // Focus back to scanner after delay
             setTimeout(() => {
+
                 const $scanner = getElement('scanner');
+
                 if ($scanner) {
+
                     $scanner.focus();
+
                 }
+
             }, 500);
+
         } else {
             console.warn('App: Failed to update row status in table for barcode:', barcode);
             

@@ -310,11 +310,13 @@ jQuery(document).ready(function($) {
                 $(row).addClass('row-pre-discarded');
             }
             
-            // Update indexes if enabled
+            // Update indexes if enabled - with normalized barcode keys
             if (this.config.enableCache && postId) {
                 this.postIdIndex.set(String(postId), data);
                 if (barcode) {
-                    this.barcodeIndex.set(String(barcode), postId);
+                    // Store barcode with normalized key for consistent lookup
+                    const normalizedBarcode = String(barcode).trim().toUpperCase();
+                    this.barcodeIndex.set(normalizedBarcode, postId);
                 }
             }
         }
@@ -333,12 +335,12 @@ jQuery(document).ready(function($) {
         }
         
         /**
-         * Initialize or rebuild indexes for fast lookups
+         * Initialize or rebuild indexes for fast lookups with normalized barcodes
          */
         initializeIndexes() {
             if (!this.config.enableCache) return;
             
-            console.log('Table Manager: Initializing indexes');
+            console.log('Table Manager: Initializing indexes with normalized barcodes');
             
             this.dataCache.clear();
             this.barcodeIndex.clear();
@@ -355,13 +357,15 @@ jQuery(document).ready(function($) {
                     if (postId) {
                         self.postIdIndex.set(String(postId), data);
                         if (barcode) {
-                            self.barcodeIndex.set(String(barcode), postId);
+                            // Store barcode with normalized key for consistent lookup
+                            const normalizedBarcode = String(barcode).trim().toUpperCase();
+                            self.barcodeIndex.set(normalizedBarcode, postId);
                         }
                     }
                 });
             }
             
-            console.log('Table Manager: Indexes built -', 
+            console.log('Table Manager: Indexes built with normalized keys -', 
                        `PostIDs: ${this.postIdIndex.size}, Barcodes: ${this.barcodeIndex.size}`);
         }
         
@@ -691,7 +695,7 @@ jQuery(document).ready(function($) {
         }
         
         /**
-         * Update row status by barcode - primary method for scanner functionality
+         * Update row status by barcode - ENHANCED VERSION with detailed logging
          * @param {string} barcode Barcode to search for
          * @param {string} newStatus New status to set
          * @returns {boolean} Success status
@@ -707,27 +711,65 @@ jQuery(document).ready(function($) {
                 return false;
             }
             
-            console.log('Table Manager: Updating status by barcode:', barcode, 'to:', newStatus);
+            // Normalize barcode for comparison
+            const normalizedBarcode = String(barcode).trim().toUpperCase();
+            console.log('🔍 Table Manager: ===== BARCODE SEARCH STARTED =====');
+            console.log('Table Manager: Searching for barcode:', normalizedBarcode);
+            console.log('Table Manager: Original barcode input:', barcode);
+            console.log('Table Manager: Target status:', newStatus);
             
             try {
-                // Use index for fast lookup if available
-                if (this.config.enableCache && this.barcodeIndex.has(String(barcode))) {
-                    const postId = this.barcodeIndex.get(String(barcode));
-                    console.log('Table Manager: Found barcode in cache, post_id:', postId);
+                // Strategy 1: Use index for fast lookup if available
+                if (this.config.enableCache && this.barcodeIndex.has(normalizedBarcode)) {
+                    const postId = this.barcodeIndex.get(normalizedBarcode);
+                    console.log('✅ Table Manager: Found barcode in cache, post_id:', postId);
                     
                     // Update cache
                     if (this.postIdIndex.has(String(postId))) {
                         const cachedData = this.postIdIndex.get(String(postId));
                         cachedData.status = newStatus;
                         this.postIdIndex.set(String(postId), cachedData);
+                        console.log('Table Manager: Cache updated for post_id:', postId);
+                    }
+                    
+                    // Continue with DataTable update
+                } else {
+                    console.log('⚠️ Table Manager: Barcode not found in cache, using iteration search');
+                    console.log('Table Manager: Cache enabled:', this.config.enableCache);
+                    console.log('Table Manager: Cache size:', this.barcodeIndex.size);
+                    
+                    // Debug cache contents
+                    if (this.barcodeIndex.size > 0) {
+                        console.log('Table Manager: Sample cached barcodes:', 
+                            Array.from(this.barcodeIndex.keys()).slice(0, 5));
                     }
                 }
                 
-                // Update in DataTable by barcode
-                return this.updateRowStatusByIteration('barcd', barcode, newStatus, 'barcode');
+                // Strategy 2: Enhanced DataTable iteration with multiple comparison methods
+                const result = this.updateRowStatusByBarcodeIteration(normalizedBarcode, newStatus);
+                
+                if (result) {
+                    console.log('✅ Table Manager: ===== BARCODE SEARCH SUCCESS =====');
+                } else {
+                    console.log('❌ Table Manager: ===== BARCODE SEARCH FAILED =====');
+                    // Strategy 3: DOM attribute fallback search
+                    console.log('🔄 Table Manager: Attempting DOM attribute search as fallback...');
+                    const domResult = this.updateRowStatusByDOMSearch(normalizedBarcode, newStatus);
+                    
+                    if (domResult) {
+                        console.log('✅ Table Manager: DOM search successful');
+                        return true;
+                    } else {
+                        console.log('❌ Table Manager: All search strategies failed');
+                        this.debugBarcodeSearch(normalizedBarcode);
+                    }
+                }
+                
+                return result;
                 
             } catch (error) {
-                console.error('Table Manager: Error updating row status by barcode:', error);
+                console.error('❌ Table Manager: Error updating row status by barcode:', error);
+                console.log('🔚 Table Manager: ===== BARCODE SEARCH ERROR =====');
                 return false;
             }
         }
@@ -769,6 +811,199 @@ jQuery(document).ready(function($) {
                 console.error('Table Manager: Error updating row status by ID:', error);
                 return false;
             }
+        }
+        
+        /**
+         * Enhanced barcode iteration search with detailed logging
+         * @param {string} normalizedBarcode Normalized barcode to search for
+         * @param {string} newStatus New status to set
+         * @returns {boolean} Success status
+         */
+        updateRowStatusByBarcodeIteration(normalizedBarcode, newStatus) {
+            let found = false;
+            let rowsChecked = 0;
+            
+            console.log('🔄 Table Manager: Starting DataTable iteration search...');
+            
+            this.table.rows().every(function() {
+                rowsChecked++;
+                const data = this.data();
+                
+                // Multiple barcode field checks with normalization
+                const barcodeFields = [
+                    data.barcd,
+                    data.barcode,
+                    data.code,
+                    data.material_code
+                ];
+                
+                const normalizedFields = barcodeFields.map(field => 
+                    field ? String(field).trim().toUpperCase() : ''
+                ).filter(field => field.length > 0);
+                
+                // Detailed logging for first few rows
+                if (rowsChecked <= 3) {
+                    console.log(`Table Manager: Row ${rowsChecked} check:`, {
+                        post_id: data.post_id,
+                        id: data.id,
+                        barcd: data.barcd,
+                        normalizedFields: normalizedFields,
+                        searchTarget: normalizedBarcode
+                    });
+                }
+                
+                // Check if any normalized field matches
+                const isMatch = normalizedFields.some(field => field === normalizedBarcode);
+                
+                if (isMatch) {
+                    console.log('🎯 Table Manager: MATCH FOUND! Updating row...');
+                    console.log('Table Manager: Match details:', {
+                        post_id: data.post_id,
+                        id: data.id,
+                        matched_field: normalizedFields.find(field => field === normalizedBarcode),
+                        original_barcd: data.barcd,
+                        row_number: rowsChecked
+                    });
+                    
+                    // Update row data
+                    data.status = newStatus;
+                    this.data(data);
+                    
+                    // Update row visual state
+                    const $row = $(this.node());
+                    $row.removeClass('row-completed row-pending');
+                    $row.addClass(newStatus === '✅' ? 'row-completed' : 'row-pending');
+                    
+                    // Add highlight effect
+                    $row.addClass('row-highlight');
+                    setTimeout(() => $row.removeClass('row-highlight'), 
+                             window.discardsTableManager.config.highlightDuration);
+                    
+                    found = true;
+                    return false; // Stop iteration
+                }
+                
+                return true; // Continue iteration
+            });
+            
+            console.log(`Table Manager: Iteration complete. Checked ${rowsChecked} rows, found: ${found}`);
+            
+            if (found) {
+                this.table.draw(false); // Redraw without changing pagination
+                this.stats.searchCount++;
+            }
+            
+            return found;
+        }
+        
+        /**
+         * DOM attribute search fallback method
+         * @param {string} normalizedBarcode Normalized barcode to search for
+         * @param {string} newStatus New status to set
+         * @returns {boolean} Success status
+         */
+        updateRowStatusByDOMSearch(normalizedBarcode, newStatus) {
+            console.log('🔍 Table Manager: Starting DOM attribute search...');
+            
+            try {
+                // Search for row with matching data-barcode attribute
+                const $targetRow = $('#discards-table tbody tr').filter(function() {
+                    const rowBarcode = $(this).attr('data-barcode');
+                    return rowBarcode && String(rowBarcode).trim().toUpperCase() === normalizedBarcode;
+                });
+                
+                console.log('Table Manager: DOM search found rows:', $targetRow.length);
+                
+                if ($targetRow.length > 0) {
+                    const postId = $targetRow.attr('data-post-id');
+                    console.log('Table Manager: Found row via DOM search, post_id:', postId);
+                    
+                    // Update the row using post_id
+                    if (postId) {
+                        return this.updateRowStatusById(postId, newStatus);
+                    }
+                }
+                
+                return false;
+            } catch (error) {
+                console.error('Table Manager: Error in DOM search:', error);
+                return false;
+            }
+        }
+        
+        /**
+         * Debug barcode search with comprehensive analysis
+         * @param {string} searchBarcode The barcode that was searched for
+         */
+        debugBarcodeSearch(searchBarcode) {
+            console.group('🔍 Table Manager: BARCODE SEARCH DEBUG');
+            console.log('🎯 Search target:', searchBarcode);
+            
+            // Analyze table data
+            const data = this.getData();
+            console.log('📊 Total records in table:', data.length);
+            
+            // Analyze barcode field presence
+            const barcodeAnalysis = data.map((row, index) => ({
+                index: index,
+                post_id: row.post_id,
+                barcd: row.barcd,
+                barcd_length: row.barcd ? row.barcd.length : 0,
+                barcd_normalized: row.barcd ? String(row.barcd).trim().toUpperCase() : '',
+                exact_match: row.barcd ? String(row.barcd).trim().toUpperCase() === searchBarcode : false
+            }));
+            
+            const nonEmptyBarcodes = barcodeAnalysis.filter(item => item.barcd);
+            console.log('📋 Records with barcodes:', nonEmptyBarcodes.length);
+            console.log('📋 Records without barcodes:', data.length - nonEmptyBarcodes.length);
+            
+            // Show sample barcodes
+            console.log('📝 Sample barcodes (first 10):');
+            console.table(barcodeAnalysis.slice(0, 10));
+            
+            // Check for partial matches
+            const partialMatches = barcodeAnalysis.filter(item => 
+                item.barcd_normalized.includes(searchBarcode) || 
+                searchBarcode.includes(item.barcd_normalized)
+            );
+            
+            if (partialMatches.length > 0) {
+                console.log('🔍 Partial matches found:', partialMatches.length);
+                console.table(partialMatches);
+            }
+            
+            // Check DOM attributes
+            const $rows = $('#discards-table tbody tr');
+            const domBarcodes = [];
+            $rows.each(function(index) {
+                const barcode = $(this).attr('data-barcode');
+                if (barcode && index < 10) { // First 10 only
+                    domBarcodes.push({
+                        index: index,
+                        post_id: $(this).attr('data-post-id'),
+                        dom_barcode: barcode,
+                        normalized: String(barcode).trim().toUpperCase(),
+                        matches: String(barcode).trim().toUpperCase() === searchBarcode
+                    });
+                }
+            });
+            
+            console.log('🏷️ DOM attribute analysis (first 10):');
+            console.table(domBarcodes);
+            
+            // Cache analysis
+            console.log('💾 Cache analysis:');
+            console.log('Cache enabled:', this.config.enableCache);
+            console.log('Barcode index size:', this.barcodeIndex.size);
+            console.log('PostID index size:', this.postIdIndex.size);
+            
+            if (this.barcodeIndex.size > 0) {
+                const cacheKeys = Array.from(this.barcodeIndex.keys()).slice(0, 10);
+                console.log('Sample cache keys:', cacheKeys);
+                console.log('Search target in cache:', this.barcodeIndex.has(searchBarcode));
+            }
+            
+            console.groupEnd();
         }
         
         /**
@@ -878,7 +1113,7 @@ jQuery(document).ready(function($) {
         }
         
         /**
-         * Enhanced barcode search with caching
+         * Enhanced barcode search with caching and normalization
          * @param {string} barcode Barcode to search for
          * @returns {Array} Matching records
          */
@@ -888,18 +1123,22 @@ jQuery(document).ready(function($) {
             }
             
             try {
+                // Normalize barcode for consistent search
+                const normalizedBarcode = String(barcode).trim().toUpperCase();
+                
                 // Use index for fast lookup if available
-                if (this.config.enableCache && this.barcodeIndex.has(String(barcode))) {
-                    const postId = this.barcodeIndex.get(String(barcode));
+                if (this.config.enableCache && this.barcodeIndex.has(normalizedBarcode)) {
+                    const postId = this.barcodeIndex.get(normalizedBarcode);
                     const cachedData = this.postIdIndex.get(String(postId));
                     return cachedData ? [cachedData] : [];
                 }
                 
-                // Fallback to table iteration
+                // Fallback to table iteration with normalization
                 const data = this.table.data().toArray();
-                return data.filter(row => 
-                    String(row.barcd || '').trim() === String(barcode).trim()
-                );
+                return data.filter(row => {
+                    const rowBarcode = row.barcd || '';
+                    return String(rowBarcode).trim().toUpperCase() === normalizedBarcode;
+                });
             } catch (error) {
                 console.error('Table Manager: Error finding by barcode:', error);
                 return [];
@@ -1084,6 +1323,7 @@ jQuery(document).ready(function($) {
                 // Statistics and debugging
                 getStatistics: this.getStatistics.bind(this),
                 debugPostIds: this.debugPostIds.bind(this),
+                debugBarcodeSearch: this.debugBarcodeSearch.bind(this),
                 getPerformanceStats: this.getPerformanceStats.bind(this),
                 
                 // Read-only state access
