@@ -75,14 +75,14 @@ class OrionDiscardHandler
             <table id="discards-table" class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th class="manage-column"><?php _e('Estado', 'orion-discard'); ?></th>                       
-                        <th class="manage-column"><?php _e('Field', 'orion-discard'); ?></th>                      
-                        <th class="manage-column"><?php _e('Range', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Row', 'orion-discard'); ?></th>                       
-                        <th class="manage-column"><?php _e('Plot ID', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Subplot ID', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('MATID', 'orion-discard'); ?></th>
-                        <th class="manage-column"><?php _e('Código', 'orion-discard'); ?></th>
+                        <th class="manage-column text-center"><?php _e('Estado', 'orion-discard'); ?></th>                       
+                        <th class="manage-column text-center"><?php _e('Field', 'orion-discard'); ?></th>                      
+                        <th class="manage-column text-center"><?php _e('Range', 'orion-discard'); ?></th>
+                        <th class="manage-column text-center"><?php _e('Row', 'orion-discard'); ?></th>                       
+                        <th class="manage-column text-center"><?php _e('Plot ID', 'orion-discard'); ?></th>
+                        <th class="manage-column text-center"><?php _e('Subplot ID', 'orion-discard'); ?></th>
+                        <th class="manage-column text-center"><?php _e('MATID', 'orion-discard'); ?></th>
+                        <th class="manage-column text-center"><?php _e('Código', 'orion-discard'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -94,19 +94,19 @@ class OrionDiscardHandler
         <!-- Modal para código duplicado -->
         <div id="duplicate-barcode-modal" class="orion-modal" style="display: none;">
             <div class="orion-modal-content">
-                <div class="orion-modal-header">
-                    <h3><?php _e('Código ya descartado', 'orion-discard'); ?></h3>
-                    <span class="orion-modal-close">&times;</span>
-                </div>
-                <div class="orion-modal-body">
-                    <p><?php _e('El código escaneado ya ha sido descartado anteriormente.', 'orion-discard'); ?></p>
-                    <p><strong><?php _e('Código:', 'orion-discard'); ?></strong> <span id="duplicate-code-display"></span></p>
-                </div>
-                <div class="orion-modal-footer">
-                    <button type="button" class="button button-primary" id="modal-close-btn">
-                        <?php _e('Entendido', 'orion-discard'); ?>
-                    </button>
-                </div>
+            <div class="orion-modal-header"></div>
+                <h3><?php _e('Barcode already discarded', 'orion-discard'); ?></h3>
+                <span class="orion-modal-close">&times;</span>
+            </div>
+            <div class="orion-modal-body">
+                <p><?php _e('The scanned barcode has already been discarded.', 'orion-discard'); ?></p>
+                <p><strong><?php _e('Barcode:', 'orion-discard'); ?></strong> <span id="duplicate-code-display"></span></p>
+            </div>
+            <div class="orion-modal-footer">
+                <button type="button" class="button button-primary" id="modal-close-btn">
+                <?php _e('OK', 'orion-discard'); ?>
+                </button>
+            </div>
             </div>
         </div>
 <?php

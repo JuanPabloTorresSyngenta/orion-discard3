@@ -573,7 +573,11 @@
     display: none !important;
 }
 
-/* ✅ SOLUCIÓN DEFINITIVA: Eliminar TODAS las flechitas predeterminadas */
+/* ========================================================================== */
+/*   DATATABLES SORTING - ELEGANT SOLUTION WITHOUT DEFAULT PURPLE ARROWS   */
+/* ========================================================================== */
+
+/* Remove ALL default DataTables sorting arrows (including purple ones) */
 #discards-table th.sorting:before,
 #discards-table th.sorting:after,
 #discards-table th.sorting_asc:before,
@@ -585,40 +589,297 @@ table.dataTable thead th.sorting:after,
 table.dataTable thead th.sorting_asc:before,
 table.dataTable thead th.sorting_asc:after,
 table.dataTable thead th.sorting_desc:before,
-table.dataTable thead th.sorting_desc:after {
+table.dataTable thead th.sorting_desc:after,
+#discards-table th.manage-column.sorting:before,
+#discards-table th.manage-column.sorting:after,
+#discards-table th.manage-column.sorting_asc:before,
+#discards-table th.manage-column.sorting_asc:after,
+#discards-table th.manage-column.sorting_desc:before,
+#discards-table th.manage-column.sorting_desc:after {
     display: none !important;
     content: "" !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
-/* Añadir solo UNA flecha personalizada después */
-#discards-table th.sorting::after {
-    content: "⇅" !important;
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    color: #666;
-    display: inline-block !important;
-    opacity: 0.7;
+/* Remove any background images that might contain arrows */
+#discards-table th.sorting,
+#discards-table th.sorting_asc,
+#discards-table th.sorting_desc,
+#discards-table th.manage-column.sorting,
+#discards-table th.manage-column.sorting_asc,
+#discards-table th.manage-column.sorting_desc {
+    background-image: none !important;
+    background: none !important;
 }
 
-#discards-table th.sorting_asc::after {
-    content: "⇧" !important;
-    color: #0073aa !important;
-    opacity: 1;
-}
-
-#discards-table th.sorting_desc::after {
-    content: "⇩" !important;
-    color: #0073aa !important;
-    opacity: 1;
-}
-
-/* Asegurar que los headers tengan espacio para la flecha */
+/* Header styling with space for custom indicators */
 #discards-table th {
+    position: relative !important;
+    padding-right: 25px !important;
+    cursor: pointer !important;
+    user-select: none !important;
+}
+
+/* Subtle custom sorting indicators - minimal and elegant */
+#discards-table thead th.sorting:after {
+    content: "⇅" !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 12px !important;
+    color: #bbb !important;
+    opacity: 0.7 !important;
+    transition: all 0.2s ease !important;
+    font-weight: normal !important;
+}
+
+#discards-table thead th.sorting_asc:after {
+    content: "▲" !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 10px !important;
+    color: #666 !important;
+    opacity: 0.9 !important;
+}
+
+#discards-table thead th.sorting_desc:after {
+    content: "▼" !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 10px !important;
+    color: #666 !important;
+    opacity: 0.9 !important;
+}
+
+/* Hover effects for better UX */
+#discards-table thead th.sorting:hover:after {
+    color: #999 !important;
+    opacity: 1 !important;
+}
+
+#discards-table thead th.sorting_asc:hover:after,
+#discards-table thead th.sorting_desc:hover:after {
+    color: #333 !important;
+    opacity: 1 !important;
+}
+
+/* ========================================================================== */
+/*   RESPONSIVE TABLE DESIGN                                                 */
+/* ========================================================================== */
+
+/* Base responsive table styling */
+#discards-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+}
+
+/* Responsive container */
+.dataTables_wrapper {
+    width: 100% !important;
+    overflow-x: auto !important;
+}
+
+/* Mobile-first responsive design */
+@media screen and (max-width: 768px) {
+    /* Adjust header padding for mobile */
+    #discards-table thead th {
+        padding: 8px 4px !important;
+        padding-right: 20px !important;
+        font-size: 12px !important;
+    }
+    
+    /* Adjust body cell padding */
+    #discards-table tbody td {
+        padding: 6px 4px !important;
+        font-size: 11px !important;
+    }
+    
+    /* Smaller sorting indicators on mobile */
+    #discards-table thead th.sorting:after,
+    #discards-table thead th.sorting_asc:after,
+    #discards-table thead th.sorting_desc:after {
+        right: 4px !important;
+        font-size: 9px !important;
+    }
+    
+    /* DataTables responsive controls */
+    .dtr-details {
+        background-color: #f9f9f9 !important;
+        border: 1px solid #ddd !important;
+        padding: 10px !important;
+    }
+    
+    .dtr-title {
+        font-weight: bold !important;
+        color: #333 !important;
+    }
+    
+    /* Hide less important columns on small screens */
+    #discards-table .dtr-hidden {
+        display: none !important;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    /* Extra small screens */
+    #discards-table thead th {
+        padding: 6px 2px !important;
+        padding-right: 18px !important;
+        font-size: 11px !important;
+    }
+    
+    #discards-table tbody td {
+        padding: 4px 2px !important;
+        font-size: 10px !important;
+    }
+    
+    /* Very small sorting indicators */
+    #discards-table thead th.sorting:after,
+    #discards-table thead th.sorting_asc:after,
+    #discards-table thead th.sorting_desc:after {
+        right: 2px !important;
+        font-size: 8px !important;
+    }
+}
+
+/* DataTables responsive button styling */
+.dtr-bs-modal table.table-condensed {
+    margin: 0 !important;
+}
+
+.dtr-bs-modal .modal-body {
+    padding: 15px !important;
+}
+
+/* Responsive status column */
+@media screen and (max-width: 768px) {
+    .status-column {
+        min-width: 50px !important;
+        width: 50px !important;
+    }
+    
+    .status-completed,
+    .status-pending {
+        font-size: 14px !important;
+    }
+}
+
+/* ========================================================================== */
+/*   DATATABLES RESPONSIVE ENHANCEMENTS                                      */
+/* ========================================================================== */
+
+/* Improve responsive button styling */
+table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control,
+table.dataTable.dtr-inline.collapsed > tbody > tr > th.dtr-control {
     position: relative;
-    padding-right: 30px;
+    cursor: pointer;
+}
+
+table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control:before,
+table.dataTable.dtr-inline.collapsed > tbody > tr > th.dtr-control:before {
+    content: "+" !important;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #007cba;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+table.dataTable.dtr-inline.collapsed > tbody > tr.parent > td.dtr-control:before,
+table.dataTable.dtr-inline.collapsed > tbody > tr.parent > th.dtr-control:before {
+    content: "-" !important;
+    background-color: #dc3545;
+}
+
+/* Responsive detail styling */
+table.dataTable.dtr-inline.collapsed > tbody > tr.child {
+    background-color: #f8f9fa !important;
+}
+
+table.dataTable.dtr-inline.collapsed > tbody > tr.child td {
+    border: none !important;
+    padding: 8px 16px !important;
+}
+
+/* Better responsive breakpoints */
+@media screen and (max-width: 1200px) {
+    /* Large tablets */
+    #discards-table {
+        font-size: 13px !important;
+    }
+}
+
+@media screen and (max-width: 992px) {
+    /* Medium tablets */
+    #discards-table {
+        font-size: 12px !important;
+    }
+    
+    #discards-table thead th {
+        padding: 10px 6px !important;
+        padding-right: 22px !important;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    /* Small mobile devices */
+    #discards-table {
+        font-size: 11px !important;
+    }
+    
+    /* Compact pagination for mobile */
+    .dataTables_paginate {
+        font-size: 12px !important;
+    }
+    
+    .dataTables_paginate .paginate_button {
+        padding: 4px 8px !important;
+        margin: 0 1px !important;
+    }
+    
+    /* Compact search and info */
+    .dataTables_filter input {
+        font-size: 12px !important;
+        padding: 4px 8px !important;
+    }
+    
+    .dataTables_info {
+        font-size: 11px !important;
+    }
+}
+
+/* Ensure table doesn't break layout */
+.dataTables_wrapper .dataTables_scroll {
+    overflow-x: auto !important;
+}
+
+/* Table container improvements */
+.table-responsive {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Status icons responsive sizing */
+@media screen and (max-width: 768px) {
+    .status-completed,
+    .status-pending {
+        font-size: 16px !important;
+        line-height: 1 !important;
+    }
 }
 
 /* Mejorar la apariencia general de la tabla */
@@ -664,4 +925,31 @@ table.dataTable thead th.sorting_desc:after {
         margin: 5px 0;
         text-align: center;
     }
+}
+
+/* Center text in headers while keeping sorting arrows on the right */
+#discards-table thead th {
+    text-align: center !important;
+    position: relative !important;
+}
+
+/* Additional cleanup for DataTables default styling */
+#discards-table thead th {
+    background: none !important;
+    background-color: #f9f9f9 !important;
+    border: 1px solid #ddd !important;
+    font-weight: 600 !important;
+    color: #333 !important;
+}
+
+/* Remove any residual DataTables CSS that might interfere */
+table.dataTable thead th,
+table.dataTable thead td {
+    border-bottom: 1px solid #ddd !important;
+}
+
+/* Status column specific styling */
+#discards-table thead th.status-column {
+    background-color: #f0f0f0 !important;
+    font-weight: bold !important;
 }

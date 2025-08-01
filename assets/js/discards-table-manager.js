@@ -100,21 +100,30 @@ jQuery(document).ready(function($) {
                 data: [], // Start empty
                 columns: this.getColumnConfiguration(),
                 pageLength: this.config.pageLength,
-                responsive: false,
-                scrollX: false,
-                autoWidth: true,
+                responsive: true, // Enable responsive design
+                scrollX: true, // Enable horizontal scroll when needed
+                autoWidth: false, // Better control over column widths
                 fixedHeader: false,
-                ordering: true,
-                order: [[0, 'asc']],
+                ordering: true, // Enable sorting functionality
+                order: [[0, 'asc']], // Default sort by first column
                 columnDefs: [
                     {
-                        targets: 0, // Status column
-                        orderable: true,
+                        targets: '_all',
+                        orderable: true, // Enable sorting on all columns
                         className: 'text-center'
                     },
+                    // Responsive priority for important columns
                     {
-                        targets: '_all',
-                        orderable: true
+                        targets: [0, 1], // Status and Field columns
+                        responsivePriority: 1 // Always visible
+                    },
+                    {
+                        targets: [6], // MATID column
+                        responsivePriority: 2 // High priority
+                    },
+                    {
+                        targets: [2, 3, 4, 5], // Range, Row, Plot ID, Subplot ID
+                        responsivePriority: 3 // Medium priority
                     }
                 ],
                 language: this.getLanguageConfig(),
@@ -128,58 +137,71 @@ jQuery(document).ready(function($) {
         }
         
         /**
-         * Get column configuration with enhanced rendering
+         * Get column configuration with enhanced rendering and responsive design
          */
         getColumnConfiguration() {
             return [
                 { 
                     data: 'status', 
-                    title: 'Estado',
+                    title: 'Status',
                     className: 'text-center status-column',
                     defaultContent: '❌',
-                    width: '80px',
+                    width: '60px',
+                    responsivePriority: 1, // Always visible
                     render: (data, type, row) => this.renderStatusColumn(data, type, row)
                 },
                 { 
                     data: 'field', 
-                    title: 'Field', 
+                    title: 'Field',
+                    className: 'text-center', 
                     defaultContent: '', 
-                    width: '120px',
+                    width: '100px',
+                    responsivePriority: 1, // Always visible
                     render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
                 },
                 { 
                     data: 'range_val', 
-                    title: 'Range', 
+                    title: 'Range',
+                    className: 'text-center', 
                     defaultContent: '', 
-                    width: '100px',
+                    width: '80px',
+                    responsivePriority: 3, // Medium priority
                     render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
                 },
                 { 
                     data: 'row_val', 
-                    title: 'Row', 
+                    title: 'Row',
+                    className: 'text-center', 
                     defaultContent: '', 
-                    width: '80px',
+                    width: '60px',
+                    responsivePriority: 3, // Medium priority
                     render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
                 },
                 { 
                     data: 'plot_id', 
-                    title: 'Plot ID', 
+                    title: 'Plot ID',
+                    className: 'text-center', 
                     defaultContent: '', 
-                    width: '100px',
+                    width: '80px',
+                    responsivePriority: 4, // Lower priority
                     render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
                 },
                 { 
                     data: 'subplot_id', 
-                    title: 'Subplot ID', 
+                    title: 'Subplot ID',
+                    className: 'text-center', 
                     defaultContent: '', 
-                    width: '120px',
+                    width: '100px',
+                    responsivePriority: 4, // Lower priority
                     render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
                 },
                 { 
                     data: 'matid', 
-                    title: 'MATID', 
+                    title: 'MATID',
+                    className: 'text-center', 
                     defaultContent: '', 
-                    width: '120px',
+                    width: '100px',
+                    responsivePriority: 2, // High priority
                     render: (data, type) => type === 'display' ? this.escapeHtml(data) : data
                 },
                 { 
@@ -223,17 +245,24 @@ jQuery(document).ready(function($) {
          */
         renderStatusColumn(data, type, row) {
             if (type === 'display') {
+
                 const isCompleted = data === '✅';
+
                 const isPreDiscarded = row._wasPreDiscarded || row.isDiscarded;
+
                 const icon = isCompleted ? '✅' : '❌';
                 
                 // Enhanced title with pre-discarded information
-                let title = isCompleted ? 'Descartado' : 'Pendiente';
+                let title = isCompleted ? 'Discarded' : 'Pending';
+
                 if (isCompleted && isPreDiscarded) {
-                    title = 'Ya fue descartado anteriormente';
+
+                    title = 'Already discarded previously';
+
                 }
                 
                 const cssClass = isCompleted ? 'status-completed' : 'status-pending';
+
                 const preDiscardedClass = isPreDiscarded ? ' status-pre-discarded' : '';
                 
                 return `<span class="${cssClass}${preDiscardedClass}" title="${title}" data-post-id="${row.post_id || row.id}" data-pre-discarded="${isPreDiscarded}">${icon}</span>`;
@@ -282,13 +311,17 @@ jQuery(document).ready(function($) {
          * Enhanced row creation with proper indexing and pre-discarded handling
          */
         onRowCreated(row, data) {
+
             const postId = data.post_id || data.id;
+
             const barcode = data.barcd;
+
             const isPreDiscarded = data._wasPreDiscarded || data.isDiscarded;
             
             // Set data attributes for enhanced tracking
             if (postId) {
                 $(row).attr('data-post-id', postId);
+
                 $(row).attr('data-record-id', postId);
             }
             
@@ -312,10 +345,13 @@ jQuery(document).ready(function($) {
             
             // Update indexes if enabled - with normalized barcode keys
             if (this.config.enableCache && postId) {
+
                 this.postIdIndex.set(String(postId), data);
+
                 if (barcode) {
                     // Store barcode with normalized key for consistent lookup
                     const normalizedBarcode = String(barcode).trim().toUpperCase();
+
                     this.barcodeIndex.set(normalizedBarcode, postId);
                 }
             }
@@ -330,6 +366,7 @@ jQuery(document).ready(function($) {
             
             // Performance logging
             if (this.stats.updateCount % 10 === 0) {
+
                 console.log('Table Manager: Performance stats:', this.getPerformanceStats());
             }
         }
@@ -343,22 +380,33 @@ jQuery(document).ready(function($) {
             console.log('Table Manager: Initializing indexes with normalized barcodes');
             
             this.dataCache.clear();
+
             this.barcodeIndex.clear();
+
             this.postIdIndex.clear();
             
             // Build indexes from current data
             if (this.table) {
+
                 const self = this; // Store reference to class instance
+
                 this.table.rows().every(function() {
+
                     const data = this.data();
+
                     const postId = data.post_id || data.id;
+
                     const barcode = data.barcd;
                     
                     if (postId) {
+
                         self.postIdIndex.set(String(postId), data);
+
                         if (barcode) {
+
                             // Store barcode with normalized key for consistent lookup
                             const normalizedBarcode = String(barcode).trim().toUpperCase();
+                            
                             self.barcodeIndex.set(normalizedBarcode, postId);
                         }
                     }
