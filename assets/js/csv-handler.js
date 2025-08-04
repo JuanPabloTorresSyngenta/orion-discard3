@@ -594,6 +594,12 @@ jQuery(document).ready(function($) {
                 
                 console.log('CSV Handler: Table update successful');
 
+                // Forzar actualización inmediata del dashboard con la nueva data
+                if (window.discardsTableManager && typeof window.discardsTableManager.updateDashboard === 'function') {
+                    console.log('CSV Handler: Forzando actualización inmediata del dashboard...');
+                    window.discardsTableManager.updateDashboard();
+                }
+
                 // Actualizar el dashboard después de cargar los datos
                 if (window.discardsTableManager && typeof window.discardsTableManager.updateDashboard === 'function') {
                     console.log('CSV Handler: Updating dashboard after data load...');

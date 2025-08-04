@@ -1125,18 +1125,25 @@ jQuery(document).ready(function($) {
     function handleBarcodeValidationError(errorMessage, barcode) {
         console.error('❌ App: Barcode validation failed:', errorMessage);
         
-        const errorMessages = {
-            'already discarded': `⚠️ Material ${barcode} ya fue descartado anteriormente`,
-            'not found': `❌ Material ${barcode} no encontrado en el sistema`,
-            'default': `Error al validar código: ${errorMessage}`
-        };
-        
-        const messageKey = Object.keys(errorMessages).find(key => 
-            key !== 'default' && errorMessage.includes(key)
-        ) || 'default';
-        
-        const messageType = messageKey === 'already discarded' ? 'warning' : 'error';
-        showMessage(errorMessages[messageKey], messageType);
+        // Normaliza el mensaje de error para evitar duplicidad y mejorar claridad
+        let userMessage = '';
+        let messageType = 'error';
+        if (errorMessage.includes('already discarded')) {
+            userMessage = `⚠️ Material ${barcode} ya fue descartado anteriormente`;
+            messageType = 'warning';
+        } else if (errorMessage.includes('not found')) {
+            userMessage = `❌ Material ${barcode} no encontrado en el sistema`;
+        } else if (errorMessage.includes('inválido') || errorMessage.includes('invalid')) {
+            userMessage = `Código de barras inválido: ${barcode}`;
+        } else {
+            // Elimina duplicidad si el mensaje ya contiene "Error al validar código"
+            if (errorMessage.startsWith('Error al validar código')) {
+                userMessage = errorMessage;
+            } else {
+                userMessage = `Error al validar código: ${errorMessage}`;
+            }
+        }
+        showMessage(userMessage, messageType);
     }
     
     /**
