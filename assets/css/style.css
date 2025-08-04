@@ -1,6 +1,568 @@
 /* Orion Discard Plugin Styles */
 /* ✅ SECURITY: These styles only apply to Orion Discard plugin pages */
 
+/* ============================================================================
+   MAIN PLUGIN STYLES
+   ============================================================================ */
+
+/* Plugin Container */
+#orion-discard-form {
+    max-width: 100%;
+    margin: 20px 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Form Elements */
+.orion-discard-admin-form {
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* ============================================================================
+   DASHBOARD DE ESTADÍSTICAS - DISEÑO HORIZONTAL MODERNO
+   ============================================================================ */
+
+/* Contenedor principal del dashboard */
+#orion-dashboard.orion-dashboard-container {
+    margin: 20px 0 !important;
+    padding: 25px !important;
+    background: #ffffff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid #e9ecef !important;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    clear: both !important;
+}
+
+/* Título del dashboard */
+#orion-dashboard .dashboard-title {
+    margin: 0 0 25px 0 !important;
+    font-size: 28px !important;
+    font-weight: 700 !important;
+    color: #2c3e50 !important;
+    text-align: center !important;
+    letter-spacing: -0.5px !important;
+}
+
+/* Layout horizontal de las tarjetas - MUY ESPECÍFICO */
+#orion-dashboard .dashboard-cards-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 20px !important;
+    justify-content: space-between !important;
+    align-items: stretch !important;
+    overflow-x: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* Tarjetas individuales - SELECTORES MUY ESPECÍFICOS */
+#orion-dashboard .dashboard-cards-row .dashboard-card {
+    flex: 1 1 0 !important;
+    min-width: 220px !important;
+    max-width: none !important;
+    background: #ffffff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    border: 2px solid #e9ecef !important;
+    transition: all 0.3s ease !important;
+    overflow: hidden !important;
+    margin: 0 !important; /* Reset all margins */
+    padding: 0 !important; /* Reset all padding */
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+}
+
+#orion-dashboard .dashboard-cards-row .dashboard-card:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Headers de las tarjetas - SELECTORES ESPECÍFICOS */
+#orion-dashboard .dashboard-card .card-header {
+    padding: 15px 20px !important;
+    margin: 0 !important;
+    font-weight: 600 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-bottom: none !important;
+    border-radius: 10px 10px 0 0 !important;
+}
+
+#orion-dashboard .dashboard-card .card-header h5 {
+    margin: 0 !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    text-align: center !important;
+    color: #ffffff !important;
+}
+
+/* Cuerpo de las tarjetas - SELECTORES ESPECÍFICOS */
+#orion-dashboard .dashboard-card .card-body {
+    padding: 25px 20px !important;
+    background: #ffffff !important;
+    text-align: center !important;
+    margin: 0 !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+}
+
+/* Números principales - SELECTORES ESPECÍFICOS */
+#orion-dashboard .dashboard-card .dashboard-number {
+    font-size: 3.5rem !important;
+    font-weight: 800 !important;
+    margin: 10px 0 !important;
+    line-height: 1 !important;
+    letter-spacing: -2px !important;
+    display: block !important;
+}
+
+/* Texto descriptivo - SELECTORES ESPECÍFICOS */
+#orion-dashboard .dashboard-card .card-text {
+    font-size: 14px !important;
+    margin: 5px 0 0 0 !important;
+    color: #6c757d !important;
+    font-weight: 500 !important;
+}
+
+/* Colores específicos para cada tarjeta - SELECTORES ESPECÍFICOS */
+#orion-dashboard .total-card {
+    border-color: #17a2b8 !important;
+}
+
+#orion-dashboard .total-card .card-header {
+    background: linear-gradient(135deg, #17a2b8, #138496) !important;
+}
+
+#orion-dashboard .total-card .dashboard-number {
+    color: #17a2b8 !important;
+}
+
+#orion-dashboard .discarded-card {
+    border-color: #28a745 !important;
+}
+
+#orion-dashboard .discarded-card .card-header {
+    background: linear-gradient(135deg, #28a745, #1e7e34) !important;
+}
+
+#orion-dashboard .discarded-card .dashboard-number {
+    color: #28a745 !important;
+}
+
+#orion-dashboard .pending-card {
+    border-color: #ffc107 !important;
+}
+
+#orion-dashboard .pending-card .card-header {
+    background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+}
+
+#orion-dashboard .pending-card .dashboard-number {
+    color: #e67e22 !important;
+}
+
+#orion-dashboard .progress-card {
+    border-color: #6f42c1 !important;
+}
+
+#orion-dashboard .progress-card .card-header {
+    background: linear-gradient(135deg, #6f42c1, #5a32a3) !important;
+}
+
+#orion-dashboard .progress-card .dashboard-number {
+    color: #6f42c1 !important;
+}
+
+/* Barra de progreso personalizada - SELECTORES ESPECÍFICOS */
+#orion-dashboard .progress {
+    height: 8px !important;
+    border-radius: 10px !important;
+    background-color: #e9ecef !important;
+    overflow: hidden !important;
+    margin-top: 15px !important;
+    width: 100% !important;
+}
+
+#orion-dashboard .progress-bar {
+    background: linear-gradient(90deg, #6f42c1, #8e44ad) !important;
+    border-radius: 10px !important;
+    transition: width 0.6s ease !important;
+    height: 100% !important;
+}
+
+/* Animación de actualización mejorada */
+.dashboard-number.updating {
+    animation: modernPulse 0.8s ease-in-out;
+}
+
+@keyframes modernPulse {
+    0% { 
+        transform: scale(1) rotate(0deg); 
+        opacity: 1; 
+    }
+    30% { 
+        transform: scale(1.05) rotate(1deg); 
+        opacity: 0.8; 
+    }
+    70% { 
+        transform: scale(1.1) rotate(-1deg); 
+        opacity: 0.6; 
+    }
+    100% { 
+        transform: scale(1) rotate(0deg); 
+        opacity: 1; 
+    }
+}
+
+/* Estados de carga modernos */
+.dashboard-card.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.dashboard-card.loading .dashboard-number {
+    position: relative;
+}
+
+.dashboard-card.loading .dashboard-number::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: -30px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e9ecef;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: modernSpin 1s linear infinite;
+}
+
+@keyframes modernSpin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Responsive Design Mejorado - SELECTORES ESPECÍFICOS */
+@media screen and (max-width: 1200px) {
+    #orion-dashboard .dashboard-cards-row {
+        gap: 15px !important;
+        flex-wrap: nowrap !important; /* Mantener horizontal */
+        justify-content: space-between !important;
+    }
+    
+    #orion-dashboard .dashboard-card {
+        flex: 1 1 0 !important;
+        min-width: 180px !important;
+        max-width: none !important;
+    }
+    
+    #orion-dashboard .dashboard-number {
+        font-size: 3rem !important;
+    }
+}
+
+@media screen and (max-width: 992px) {
+    #orion-dashboard .dashboard-cards-row {
+        flex-wrap: nowrap !important; /* Mantener horizontal */
+        justify-content: space-between !important;
+        gap: 10px !important;
+    }
+    
+    #orion-dashboard .dashboard-card {
+        flex: 1 1 0 !important;
+        min-width: 160px !important;
+        max-width: none !important;
+    }
+    
+    #orion-dashboard .dashboard-number {
+        font-size: 2.5rem !important;
+    }
+    
+    #orion-dashboard .dashboard-title {
+        font-size: 24px !important;
+    }
+    
+    #orion-dashboard .dashboard-card .card-header {
+        padding: 12px 15px !important;
+    }
+    
+    #orion-dashboard .dashboard-card .card-body {
+        padding: 20px 15px !important;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    #orion-dashboard.orion-dashboard-container {
+        padding: 20px 15px !important;
+        margin: 15px 0 !important;
+    }
+    
+    #orion-dashboard .dashboard-cards-row {
+        flex-wrap: nowrap !important; /* Forzar horizontal incluso en móvil */
+        gap: 8px !important;
+        overflow-x: auto !important;
+        padding-bottom: 10px !important; /* Espacio para scroll */
+    }
+    
+    #orion-dashboard .dashboard-card {
+        flex: 0 0 140px !important; /* Tamaño fijo para mobile */
+        min-width: 140px !important;
+        max-width: 140px !important;
+    }
+    
+    #orion-dashboard .dashboard-number {
+        font-size: 2rem !important;
+    }
+    
+    #orion-dashboard .dashboard-title {
+        font-size: 22px !important;
+        margin-bottom: 20px !important;
+    }
+    
+    #orion-dashboard .dashboard-card .card-header {
+        padding: 10px 8px !important;
+    }
+    
+    #orion-dashboard .dashboard-card .card-header h5 {
+        font-size: 12px !important;
+    }
+    
+    #orion-dashboard .dashboard-card .card-body {
+        padding: 15px 8px !important;
+    }
+    
+    #orion-dashboard .dashboard-card .card-text {
+        font-size: 12px !important;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    #orion-dashboard.orion-dashboard-container {
+        padding: 15px 10px !important;
+    }
+    
+    #orion-dashboard .dashboard-cards-row {
+        gap: 5px !important;
+    }
+    
+    #orion-dashboard .dashboard-card {
+        flex: 0 0 120px !important;
+        min-width: 120px !important;
+        max-width: 120px !important;
+    }
+    
+    #orion-dashboard .dashboard-number {
+        font-size: 1.8rem !important;
+    }
+    
+    #orion-dashboard .dashboard-title {
+        font-size: 20px !important;
+    }
+    
+    #orion-dashboard .dashboard-card .card-header h5 {
+        font-size: 11px !important;
+    }
+    
+    #orion-dashboard .dashboard-card .card-text {
+        font-size: 11px !important;
+    }
+}
+
+/* Efectos adicionales para mejorar la experiencia */
+#orion-dashboard .dashboard-card {
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+#orion-dashboard .dashboard-card::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: -100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent) !important;
+    transition: left 0.5s !important;
+}
+
+#orion-dashboard .dashboard-card:hover::before {
+    left: 100% !important;
+}
+
+/* Ajustes para el contexto de WordPress */
+#orion-dashboard .dashboard-card .card-header {
+    border-radius: 10px 10px 0 0 !important;
+}
+
+#orion-dashboard .dashboard-card:last-child {
+    margin-right: 0 !important;
+}
+
+/* ============================================================================
+   OVERRIDE COMPLETO DE BOOTSTRAP - ALTA ESPECIFICIDAD
+   ============================================================================ */
+
+/* Reset completo de Bootstrap para el dashboard */
+#orion-dashboard * {
+    box-sizing: border-box !important;
+    float: none !important;
+    position: static !important;
+}
+
+#orion-dashboard .dashboard-cards-row * {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Reset específico de clases Bootstrap */
+#orion-dashboard .mb-4,
+#orion-dashboard .mb-3,
+#orion-dashboard .mb-2,
+#orion-dashboard .mb-1 {
+    margin-bottom: 0 !important;
+}
+
+#orion-dashboard .mt-4,
+#orion-dashboard .mt-3,
+#orion-dashboard .mt-2,
+#orion-dashboard .mt-1 {
+    margin-top: 0 !important;
+}
+
+#orion-dashboard .py-3,
+#orion-dashboard .py-2,
+#orion-dashboard .py-1 {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+#orion-dashboard .border-0 {
+    border: none !important;
+}
+
+#orion-dashboard .rounded-3 {
+    border-radius: 12px !important;
+}
+
+#orion-dashboard .shadow-sm {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+#orion-dashboard .text-center {
+    text-align: center !important;
+}
+
+#orion-dashboard .text-muted {
+    color: #6c757d !important;
+}
+
+/* Force flex layout específicamente para el dashboard */
+#orion-dashboard .dashboard-cards-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    min-height: 200px !important; /* Altura mínima para visualizar */
+}
+
+/* Table Styles */
+#discards-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#discards-table th,
+#discards-table td {
+    padding: 12px 8px;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+    vertical-align: middle;
+}
+
+#discards-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#discards-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Status Column Styles */
+.status-cell {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.status-completed {
+    color: #28a745;
+}
+
+.status-pending {
+    color: #dc3545;
+}
+
+/* Loading States */
+.loading-indicator {
+    text-align: center;
+    padding: 20px;
+    color: #6c757d;
+}
+
+/* Messages */
+.alert {
+    padding: 12px 16px;
+    margin: 10px 0;
+    border-radius: 4px;
+    border-left: 4px solid;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #17a2b8;
+    color: #0c5460;
+}
+
+/* ============================================================================
+   PRE-DISCARDED MATERIALS STYLING
+   ============================================================================ */
+
 /* Pre-Discarded Materials Styling */
 .row-pre-discarded {
     background-color: #f8f9fa !important;
@@ -68,606 +630,101 @@
     }
 }
 
-/* Status Column Styling */
-#discards-table .text-center {
-    font-size: 16px;
-    font-weight: bold;
-}
-
-.status-completed {
-    color: #28a745;
-    font-weight: bold;
-}
-
-.status-pending {
-    color: #dc3545;
-    font-weight: bold;
-}
-
-/* Enhanced status indicators */
-#discards-table tbody tr td:first-child {
-    text-align: center;
-    vertical-align: middle;
-}
-
-/* Barcode Validation Icon Styles - DEPRECATED (keeping for backward compatibility) */
-.barcode-validation-icon {
-    display: inline-block;
-    margin-left: 8px;
-    vertical-align: middle;
-    font-size: 18px;
-    font-weight: bold;
-    line-height: 1;
-    transition: all 0.3s ease;
-}
-
-.barcode-validation-icon.validation-check {
-    color: #28a745;
-    animation: checkmark-bounce 0.3s ease-out;
-}
-
-.barcode-validation-icon.validation-x {
-    color: #dc3545;
-    animation: x-shake 0.3s ease-out;
-}
-
-.barcode-validation-icon.validation-clear {
-    color: transparent;
-}
-
-/* Animation for check mark */
-@keyframes checkmark-bounce {
-    0% { transform: scale(0.8); opacity: 0; }
-    50% { transform: scale(1.2); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
-/* Animation for X mark */
-@keyframes x-shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-2px); }
-    75% { transform: translateX(2px); }
-}
-
-/* Animation for loading spinner */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Scanner input container enhancement */
-#scanner-input {
-    position: relative;
-}
-
-/* Ensure icon container doesn't break layout */
-.input-group .barcode-validation-icon,
-.form-group .barcode-validation-icon,
-.field-container .barcode-validation-icon {
-    position: relative;
-    top: -1px;
-}
-
-/* Simple Data Table Fallback Styles */
-.simple-data-table,
-#discards-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 20px 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #fff;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.simple-data-table thead,
-#discards-table thead {
-    background: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
-}
-
-.simple-data-table th,
-#discards-table th {
-    padding: 12px 8px;
-    text-align: left;
-    font-weight: 600;
-    color: #495057;
-    font-size: 14px;
-    border-right: 1px solid #dee2e6;
-}
-
-.simple-data-table th:last-child,
-#discards-table th:last-child {
-    border-right: none;
-}
-
-.simple-data-table tbody tr,
-#discards-table tbody tr {
-    border-bottom: 1px solid #dee2e6;
-    transition: background-color 0.2s ease;
-}
-
-.simple-data-table tbody tr:hover,
-#discards-table tbody tr:hover {
-    background-color: #f8f9fa;
-}
-
-.simple-data-table tbody tr:last-child,
-#discards-table tbody tr:last-child {
-    border-bottom: none;
-}
-
-.simple-data-table td,
-#discards-table td {
-    padding: 10px 8px;
-    vertical-align: middle;
-    color: #495057;
-    font-size: 13px;
-    border-right: 1px solid #f1f3f4;
-}
-
-.simple-data-table td:last-child,
-#discards-table td:last-child {
-    border-right: none;
-}
-
-.simple-data-table .text-center,
-#discards-table .text-center {
-    text-align: center;
-}
-
-/* Status indicators for both tables */
-.simple-data-table .status-pending,
-#discards-table .status-pending {
-    color: #dc3545;
-    font-weight: bold;
-    font-size: 16px;
-}
-
-.simple-data-table .status-completed,
-#discards-table .status-completed {
-    color: #28a745;
-    font-weight: bold;
-    font-size: 16px;
-}
-
-/* WordPress table overrides */
-#discards-table.wp-list-table {
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-}
-
-#discards-table.wp-list-table th.manage-column {
-    background: #f6f7f7;
-    border-bottom: 1px solid #c3c4c7;
-    color: #2c3338;
-    font-size: 13px;
-    padding: 8px 10px;
-}
-
-#discards-table.wp-list-table tbody tr:nth-child(odd) {
-    background-color: #f9f9f9;
-}
-
-#discards-table.wp-list-table tbody tr:nth-child(even) {
-    background-color: #fff;
-}
-
-/* Empty state styling */
-#discards-table tbody tr.empty-state td {
-    text-align: center;
-    padding: 40px 20px;
-    color: #666;
-    font-style: italic;
-    background-color: #f9f9f9;
-}
-
-/* Loading state styling */
-#csv-loading {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    padding: 20px;
-    margin: 10px 0;
-    text-align: center;
-}
-
-#csv-loading p {
-    margin: 0;
-    color: #50575e;
-}
-
-/* Message styling */
-#csv-message {
-    margin: 10px 0;
-    padding: 12px;
-    border-left: 4px solid #72aee6;
-    background: #f0f6fc;
-}
-
-#csv-message.notice-success {
-    border-left-color: #00a32a;
-    background: #f0f6fc;
-    color: #1d2327;
-}
-
-#csv-message.notice-error {
-    border-left-color: #d63638;
-    background: #fcf0f1;
-    color: #1d2327;
-}
-
-#csv-message.notice-warning {
-    border-left-color: #dba617;
-    background: #fcf9e8;
-    color: #1d2327;
-}
-
-/* Responsive design for both tables */
+/* Responsive Design */
 @media (max-width: 768px) {
-    .simple-data-table,
     #discards-table {
-        font-size: 12px;
+        font-size: 14px;
     }
     
-    .simple-data-table th,
-    .simple-data-table td,
     #discards-table th,
     #discards-table td {
-        padding: 6px 4px;
+        padding: 8px 4px;
     }
 }
 
-/* DataTables container */
-#discards-table-container {
-    margin-top: 30px;
-}
-
-#discards-table-container h4 {
-    color: #333;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 8px;
-}
-
-/* Admin-style form overrides */
-.orion-discard-admin-form {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    box-shadow: 0 1px 1px rgba(0,0,0,.04);
-    padding: 20px;
-    margin: 20px 0;
-    border-radius: 4px;
-}
-
-.orion-discard-admin-form .form-table th {
-    width: 200px;
-    padding: 20px 10px 20px 0;
-    font-weight: 600;
-}
-
-.orion-discard-admin-form .form-table td {
-    padding: 15px 10px;
-}
-
-.orion-discard-admin-form #scanner-input {
-    background-color: #f0fff0 !important;
-    border-color: #4CAF50 !important;
-}
-
-.orion-discard-admin-form select:disabled,
-.orion-discard-admin-form input:disabled {
-    background-color: #f6f7f7 !important;
-    color: #757575 !important;
-    cursor: not-allowed;
-}
-
-.orion-discard-admin-form .regular-text {
-    width: 300px;
-}
-
-.orion-discard-admin-form .description {
-    font-style: italic;
-    color: #666;
-    margin: 5px 0 0 0;
-}
-
-/* Admin table styles */
-.orion-discard-admin-form #discards-table {
+/* DataTables Integration */
+.dataTables_wrapper {
     margin-top: 20px;
-    border-collapse: collapse;
 }
 
-.orion-discard-admin-form #discards-table th {
-    background-color: #f1f1f1;
-    font-weight: 600;
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #c3c4c7;
+.dataTables_length,
+.dataTables_filter,
+.dataTables_info,
+.dataTables_paginate {
+    margin: 10px 0;
 }
 
-.orion-discard-admin-form #discards-table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #f0f0f1;
-}
-
-.orion-discard-admin-form #discards-table tbody tr:hover {
-    background-color: #f6f7f7;
-}
-
-/* Loading states */
-.loading {
-    position: relative;
-}
-
-.loading:after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 20px;
-    height: 20px;
-    margin: -10px 0 0 -10px;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #0073aa;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Success/Error messages with admin styling */
-.orion-message {
-    padding: 12px;
-    margin: 15px 0;
+/* Button Styles */
+.orion-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #007cba;
+    color: white;
+    text-decoration: none;
     border-radius: 4px;
-    font-weight: 500;
-    border-left: 4px solid;
-}
-
-.orion-message.success {
-    background-color: #d4edda;
-    color: #155724;
-    border-left-color: #28a745;
-}
-
-.orion-message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border-left-color: #dc3545;
-}
-
-.orion-message.notice {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    border-left-color: #17a2b8;
-}
-
-/* WordPress admin integration */
-.wrap .orion-discard-admin-form h1 {
-    margin-bottom: 20px;
-}
-
-.wrap .orion-discard-admin-form .wp-header-end {
-    margin: 20px 0;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .orion-discard-admin-form {
-        max-width: 100%;
-        padding: 15px;
-        margin: 15px 0;
-    }
-    
-    .orion-discard-admin-form .regular-text {
-        font-size: 16px; /* Prevent zoom on iOS */
-        width: 100%;
-    }
-    
-    .orion-discard-admin-form .form-table th,
-    .orion-discard-admin-form .form-table td {
-        display: block;
-        width: 100%;
-        padding: 10px 0;
-    }
-    
-    .orion-discard-admin-form .form-table th {
-        border-bottom: none;
-        margin-bottom: 5px;
-    }
-}
-
-/* Modal styling */
-.orion-modal {
-    display: none;
-    position: fixed;
-    z-index: 10000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-}
-
-.orion-modal-content {
-    background-color: #fff;
-    margin: 15% auto;
-    padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    width: 90%;
-    max-width: 500px;
-    position: relative;
-}
-
-.orion-modal-header {
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
-    margin-bottom: 20px;
-}
-
-.orion-modal-header h2 {
-    margin: 0;
-    color: #d63384;
-    font-size: 1.5em;
-}
-
-.orion-modal-close {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    font-size: 24px;
+    border: none;
     cursor: pointer;
-    color: #999;
+    font-size: 14px;
 }
 
-.orion-modal-close:hover {
-    color: #333;
+.orion-btn:hover {
+    background-color: #005a87;
+    color: white;
+    text-decoration: none;
 }
 
-.orion-modal-body {
-    margin-bottom: 20px;
-    font-size: 1.1em;
-    line-height: 1.5;
+.orion-btn:focus {
+    outline: 2px solid #005a87;
+    outline-offset: 2px;
 }
 
-.orion-modal-footer {
-    text-align: right;
-    border-top: 1px solid #eee;
-    padding-top: 15px;
-}
-
-.orion-modal-footer .button {
-    margin-left: 10px;
-}
-
-.orion-modal-footer .button-primary {
-    background-color: #d63384;
-    border-color: #d63384;
-}
-
-.orion-modal-footer .button-primary:hover {
-    background-color: #b02a5b;
-    border-color: #b02a5b;
-}
-
-/* DataTables enhancements for new columns */
-#discards-table .text-center {
+/* Utility Classes */
+.text-center {
     text-align: center;
 }
 
-#discards-table .font-weight-bold {
-    font-weight: bold;
+.text-left {
+    text-align: left;
 }
 
-/* ✅ CORRECCIÓN: Ocultar filas de sizing de DataTables */
-#discards-table thead tr[style*="height: 0px"] {
+.text-right {
+    text-align: right;
+}
+
+.hidden {
     display: none !important;
 }
 
-#discards-table .dataTables_sizing {
-    display: none !important;
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
-/* ========================================================================== */
-/*   DATATABLES SORTING - ELEGANT SOLUTION WITHOUT DEFAULT PURPLE ARROWS   */
-/* ========================================================================== */
-
-/* Remove ALL default DataTables sorting arrows (including purple ones) */
-#discards-table th.sorting:before,
-#discards-table th.sorting:after,
-#discards-table th.sorting_asc:before,
-#discards-table th.sorting_asc:after,
-#discards-table th.sorting_desc:before,
-#discards-table th.sorting_desc:after,
-table.dataTable thead th.sorting:before,
-table.dataTable thead th.sorting:after,
-table.dataTable thead th.sorting_asc:before,
-table.dataTable thead th.sorting_asc:after,
-table.dataTable thead th.sorting_desc:before,
-table.dataTable thead th.sorting_desc:after,
-#discards-table th.manage-column.sorting:before,
-#discards-table th.manage-column.sorting:after,
-#discards-table th.manage-column.sorting_asc:before,
-#discards-table th.manage-column.sorting_asc:after,
-#discards-table th.manage-column.sorting_desc:before,
-#discards-table th.manage-column.sorting_desc:after {
-    display: none !important;
-    content: "" !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
+/* Accessibility */
+.focus-visible {
+    outline: 2px solid #005a87;
+    outline-offset: 2px;
 }
 
-/* Remove any background images that might contain arrows */
-#discards-table th.sorting,
-#discards-table th.sorting_asc,
-#discards-table th.sorting_desc,
-#discards-table th.manage-column.sorting,
-#discards-table th.manage-column.sorting_asc,
-#discards-table th.manage-column.sorting_desc {
-    background-image: none !important;
-    background: none !important;
-}
-
-/* Header styling with space for custom indicators */
-#discards-table th {
-    position: relative !important;
-    padding-right: 25px !important;
-    cursor: pointer !important;
-    user-select: none !important;
-}
-
-/* Subtle custom sorting indicators - minimal and elegant */
-#discards-table thead th.sorting:after {
-    content: "⇅" !important;
-    position: absolute !important;
-    right: 8px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    font-size: 12px !important;
-    color: #bbb !important;
-    opacity: 0.7 !important;
-    transition: all 0.2s ease !important;
-    font-weight: normal !important;
-}
-
-#discards-table thead th.sorting_asc:after {
-    content: "▲" !important;
-    position: absolute !important;
-    right: 8px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    font-size: 10px !important;
-    color: #666 !important;
-    opacity: 0.9 !important;
-}
-
-#discards-table thead th.sorting_desc:after {
-    content: "▼" !important;
-    position: absolute !important;
-    right: 8px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    font-size: 10px !important;
-    color: #666 !important;
-    opacity: 0.9 !important;
-}
-
-/* Hover effects for better UX */
-#discards-table thead th.sorting:hover:after {
-    color: #999 !important;
-    opacity: 1 !important;
-}
-
-#discards-table thead th.sorting_asc:hover:after,
-#discards-table thead th.sorting_desc:hover:after {
-    color: #333 !important;
-    opacity: 1 !important;
+/* Print Styles */
+@media print {
+    .dataTables_filter,
+    .dataTables_length,
+    .dataTables_paginate {
+        display: none;
+    }
+    
+    #discards-table {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
 }
 
 /* ========================================================================== */
@@ -953,4 +1010,153 @@ table.dataTable thead td {
 #discards-table thead th.status-column {
     background-color: #f0f0f0 !important;
     font-weight: bold !important;
+}
+
+/* ============================================================================
+   FORCE DASHBOARD HORIZONTAL LAYOUT - ULTIMATE OVERRIDE
+   ============================================================================ */
+
+/* Ultimate force for dashboard container */
+div#orion-dashboard.orion-dashboard-container {
+    display: block !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Ultimate force for cards row */
+div#orion-dashboard div.dashboard-cards-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    justify-content: space-between !important;
+    gap: 20px !important;
+    width: 100% !important;
+    position: relative !important;
+    z-index: 2 !important;
+}
+
+/* Ultimate force for individual cards */
+div#orion-dashboard div.dashboard-cards-row div.dashboard-card {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    min-width: 200px !important;
+    max-width: none !important;
+    position: relative !important;
+    z-index: 3 !important;
+}
+
+/* Ensure cards are visible */
+div#orion-dashboard div.dashboard-card div.card-header,
+div#orion-dashboard div.dashboard-card div.card-body {
+    position: relative !important;
+    z-index: 4 !important;
+}
+
+/* Clear any WordPress/Bootstrap interference */
+div#orion-dashboard div.dashboard-cards-row:before,
+div#orion-dashboard div.dashboard-cards-row:after {
+    display: none !important;
+}
+
+div#orion-dashboard div.dashboard-card:before,
+div#orion-dashboard div.dashboard-card:after {
+    display: none !important;
+}
+
+/* ============================================================================
+   EMERGENCY DASHBOARD LAYOUT FIX - HIGHEST PRIORITY
+   ============================================================================ */
+
+/* Emergency fix: Force dashboard to be visible and horizontal */
+#orion-dashboard,
+#orion-dashboard.orion-dashboard-container,
+div#orion-dashboard {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* Emergency fix: Force cards row to be horizontal flex */
+.dashboard-cards-row,
+#orion-dashboard .dashboard-cards-row,
+div#orion-dashboard div.dashboard-cards-row {
+    display: -webkit-box !important;
+    display: -ms-flexbox !important;
+    display: flex !important;
+    -webkit-box-orient: horizontal !important;
+    -webkit-box-direction: normal !important;
+    -ms-flex-direction: row !important;
+    flex-direction: row !important;
+    -ms-flex-wrap: nowrap !important;
+    flex-wrap: nowrap !important;
+    -webkit-box-pack: justify !important;
+    -ms-flex-pack: justify !important;
+    justify-content: space-between !important;
+    -webkit-box-align: stretch !important;
+    -ms-flex-align: stretch !important;
+    align-items: stretch !important;
+    gap: 20px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Emergency fix: Force individual cards to be flex items */
+.dashboard-card,
+#orion-dashboard .dashboard-card,
+div#orion-dashboard div.dashboard-card {
+    display: -webkit-box !important;
+    display: -ms-flexbox !important;
+    display: flex !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-box-direction: normal !important;
+    -ms-flex-direction: column !important;
+    flex-direction: column !important;
+    -webkit-box-flex: 1 !important;
+    -ms-flex: 1 1 0% !important;
+    flex: 1 1 0% !important;
+    min-width: 200px !important;
+    max-width: none !important;
+    height: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Emergency fix: Remove any float or clear that might interfere */
+#orion-dashboard *,
+#orion-dashboard .dashboard-cards-row *,
+#orion-dashboard .dashboard-card * {
+    float: none !important;
+    clear: none !important;
+    position: static !important;
+}
+
+/* Emergency fix: Card headers and bodies */
+#orion-dashboard .dashboard-card .card-header,
+#orion-dashboard .dashboard-card .card-body {
+    display: block !important;
+    width: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* For older browsers - fallback table layout if flex fails */
+@supports not (display: flex) {
+    .dashboard-cards-row {
+        display: table !important;
+        width: 100% !important;
+        table-layout: fixed !important;
+    }
+    
+    .dashboard-card {
+        display: table-cell !important;
+        width: 25% !important;
+        vertical-align: top !important;
+    }
 }

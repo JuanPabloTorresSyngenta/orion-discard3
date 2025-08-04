@@ -119,6 +119,9 @@ jQuery(document).ready(function($) {
 
                 setupBarcodeScanning();
                 
+                // Inicializar el dashboard inmediatamente después de que todo esté listo
+                initializeDashboardWithRetry();
+                
                 state.initializationComplete = true;
 
                 console.log('App: Initialization complete');
@@ -1376,6 +1379,78 @@ jQuery(document).ready(function($) {
             processBarcodeInput(testBarcode || 'TEST123');
         },
         
+        // Debug function: Test dashboard
+        testDashboard: function() {
+            console.log('🧪 Testing dashboard...');
+            
+            // 1. Verificar que existen los elementos
+            const elements = {
+                container: document.querySelector('#orion-dashboard'),
+                title: document.querySelector('.dashboard-title'),
+                cardsRow: document.querySelector('.dashboard-cards-row'),
+                totalCard: document.querySelector('.total-card'),
+                discardedCard: document.querySelector('.discarded-card'),
+                pendingCard: document.querySelector('.pending-card'),
+                progressCard: document.querySelector('.progress-card'),
+                total: document.querySelector('#total-materials'),
+                discarded: document.querySelector('#discarded-materials'),
+                pending: document.querySelector('#pending-materials'),
+                progress: document.querySelector('#progress-percentage'),
+                progressBar: document.querySelector('#progress-bar')
+            };
+            
+            console.log('Dashboard elements check:', elements);
+            
+            // 2. Si no existe el container, mostrar error
+            if (!elements.container) {
+                console.error('❌ Dashboard container not found! HTML may not be loaded.');
+                return false;
+            }
+            
+            console.log('✅ Dashboard HTML structure found');
+            
+            // 3. Verificar CSS del layout horizontal
+            if (elements.cardsRow) {
+                const cardsRowStyle = window.getComputedStyle(elements.cardsRow);
+                console.log('Cards row CSS:', {
+                    display: cardsRowStyle.display,
+                    flexDirection: cardsRowStyle.flexDirection,
+                    flexWrap: cardsRowStyle.flexWrap,
+                    gap: cardsRowStyle.gap,
+                    justifyContent: cardsRowStyle.justifyContent
+                });
+            }
+            
+            // 4. Probar actualización manual con valores de ejemplo
+            if (elements.total) elements.total.textContent = '150';
+            if (elements.discarded) elements.discarded.textContent = '38';
+            if (elements.pending) elements.pending.textContent = '112';
+            if (elements.progress) elements.progress.textContent = '25%';
+            if (elements.progressBar) {
+                elements.progressBar.style.width = '25%';
+                elements.progressBar.setAttribute('aria-valuenow', '25');
+            }
+            
+            console.log('✅ Dashboard manually updated with test values');
+            
+            // 5. Probar función del table manager
+            if (window.discardsTableManager && window.discardsTableManager.updateDashboard) {
+                setTimeout(() => {
+                    console.log('🔄 Testing table manager dashboard update...');
+                    window.discardsTableManager.updateDashboard();
+                    
+                    // Ejecutar debug del dashboard del table manager
+                    if (window.discardsTableManager.debugDashboard) {
+                        console.log('🔍 Running table manager dashboard debug...');
+                        const debugResult = window.discardsTableManager.debugDashboard();
+                        console.log('Debug result:', debugResult);
+                    }
+                }, 1000);
+            }
+            
+            return 'Dashboard test completed - check console for details';
+        },
+        
         // Debug function: Force reload dropdown data
         forceReloadDropdowns: function() {
             console.log('🔄 Force reloading dropdown data...');
@@ -1515,7 +1590,598 @@ jQuery(document).ready(function($) {
                     console.log(`  Row ${index}: id=${row.id}, post_id=${row.post_id}`);
                 });
             }
+        },
+        
+        // Full diagnostic test
+        runFullDiagnostic: function() {
+            console.log('\n🧪 =================');
+            console.log('🧪 FULL DIAGNOSTIC TEST');
+            console.log('🧪 =================\n');
+            
+            // 1. Check DOM elements
+            console.log('1️⃣ Checking DOM elements...');
+            const elements = {
+                'Discards table': $('#discards-table').length,
+                'Form container': $('#vform-container').length,
+                'Scanner input': $('#orion-barcode-scanner').length
+            };
+            
+            console.table(elements);
+            
+            // 2. Check JavaScript objects
+            console.log('\n2️⃣ Checking JavaScript objects...');
+            const objects = {
+                'window.orionDiscardsTable': !!window.orionDiscardsTable,
+                'window.discardsTableManager': !!window.discardsTableManager,
+                'DataTable initialized': !!(window.orionDiscardsTable && window.orionDiscardsTable.data),
+                'Table has data': !!(window.orionDiscardsTable && window.orionDiscardsTable.data && window.orionDiscardsTable.data().count() > 0)
+            };
+            
+            console.table(objects);
+            
+            console.log('\n🧪 DIAGNOSTIC TEST COMPLETED 🧪\n');
+            
+            return 'Diagnostic test completed - check console for results';
         }
+    };
+
+    // ============================================================================
+    // DASHBOARD INITIALIZATION HELPER
+    // ============================================================================
+    
+    /**
+     * Inicializar dashboard con reintentos
+     */
+    function initializeDashboardWithRetry(attempts = 0, maxAttempts = 5) {
+        console.log(`App: Intento ${attempts + 1} de inicialización del dashboard`);
+        
+        // Verificar que existan los elementos HTML del dashboard
+        const dashboardContainer = document.querySelector('#orion-dashboard');
+        const dashboardCards = document.querySelector('.dashboard-cards-row');
+        
+        if (!dashboardContainer || !dashboardCards) {
+            console.warn('App: Elementos del dashboard no encontrados en el DOM');
+            if (attempts < maxAttempts) {
+                setTimeout(() => initializeDashboardWithRetry(attempts + 1, maxAttempts), 500);
+                return;
+            }
+            console.error('App: No se pudieron encontrar los elementos del dashboard después de varios intentos');
+            return;
+        }
+        
+        // Verificar que el table manager esté disponible
+        if (!window.discardsTableManager) {
+            console.warn('App: Table manager no disponible');
+            if (attempts < maxAttempts) {
+                setTimeout(() => initializeDashboardWithRetry(attempts + 1, maxAttempts), 500);
+                return;
+            }
+            console.error('App: Table manager no disponible después de varios intentos');
+            return;
+        }
+        
+        // Inicializar dashboard
+        try {
+            if (window.discardsTableManager.initializeDashboard) {
+                const success = window.discardsTableManager.initializeDashboard();
+                if (success !== false) {
+                    console.log('App: Dashboard inicializado correctamente');
+                    
+                    // Forzar actualización inmediata
+                    setTimeout(() => {
+                        if (window.discardsTableManager.updateDashboard) {
+                            window.discardsTableManager.updateDashboard();
+                            console.log('App: Dashboard actualizado inmediatamente');
+                        }
+                    }, 100);
+                } else {
+                    console.warn('App: Inicialización del dashboard falló');
+                    if (attempts < maxAttempts) {
+                        setTimeout(() => initializeDashboardWithRetry(attempts + 1, maxAttempts), 500);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('App: Error al inicializar dashboard:', error);
+            if (attempts < maxAttempts) {
+                setTimeout(() => initializeDashboardWithRetry(attempts + 1, maxAttempts), 500);
+            }
+        }
+    }
+    
+    // ============================================================================
+    // FUNCIONES GLOBALES DE DEBUG
+    // ============================================================================
+    
+    /**
+     * Función global para debug inmediato del dashboard
+     */
+    window.debugOrionDashboard = function() {
+        console.log('🔍 DEBUG INMEDIATO DEL DASHBOARD');
+        
+        // 1. Verificar elementos HTML
+        const elements = {
+            container: document.querySelector('#orion-dashboard'),
+            cardsRow: document.querySelector('.dashboard-cards-row'),
+            total: document.querySelector('#total-materials'),
+            discarded: document.querySelector('#discarded-materials'),
+            pending: document.querySelector('#pending-materials'),
+            progress: document.querySelector('#progress-percentage'),
+            progressBar: document.querySelector('#progress-bar')
+        };
+        
+        console.log('1. Elementos HTML:', elements);
+        
+        // 2. Verificar CSS de layout
+        if (elements.cardsRow) {
+            const style = window.getComputedStyle(elements.cardsRow);
+            console.log('2. CSS del layout:', {
+                display: style.display,
+                flexWrap: style.flexWrap,
+                gap: style.gap,
+                justifyContent: style.justifyContent
+            });
+        }
+        
+        // 3. Verificar Table Manager
+        console.log('3. Table Manager disponible:', !!window.discardsTableManager);
+        
+        // 4. Forzar actualización manual
+        if (elements.total) elements.total.textContent = '42';
+        if (elements.discarded) elements.discarded.textContent = '15';
+        if (elements.pending) elements.pending.textContent = '27';
+        if (elements.progress) elements.progress.textContent = '36%';
+        if (elements.progressBar) {
+            elements.progressBar.style.width = '36%';
+            elements.progressBar.setAttribute('aria-valuenow', '36');
+        }
+        console.log('4. ✅ Valores manuales aplicados');
+        
+        // 5. Probar función del table manager
+        if (window.discardsTableManager) {
+            setTimeout(() => {
+                console.log('5. 🔄 Probando updateDashboard...');
+                window.discardsTableManager.updateDashboard();
+                
+                if (window.discardsTableManager.debugDashboard) {
+                    const debugResult = window.discardsTableManager.debugDashboard();
+                    console.log('6. 📊 Debug result:', debugResult);
+                }
+            }, 1000);
+        }
+        
+        return 'Debug completado - revisar consola';
+    };
+    
+    /**
+     * Función para forzar la actualización del dashboard con datos simulados
+     */
+    window.forceUpdateDashboard = function() {
+        console.log('🔥 FORZANDO ACTUALIZACIÓN DEL DASHBOARD');
+        
+        const elements = {
+            total: document.querySelector('#total-materials'),
+            discarded: document.querySelector('#discarded-materials'),
+            pending: document.querySelector('#pending-materials'),
+            progress: document.querySelector('#progress-percentage'),
+            progressBar: document.querySelector('#progress-bar')
+        };
+        
+        // Datos simulados para test
+        const testData = {
+            total: 150,
+            discarded: 89,
+            pending: 61,
+            percentage: 59
+        };
+        
+        // Actualizar elementos directamente
+        if (elements.total) {
+            elements.total.textContent = testData.total;
+            elements.total.style.color = '#17a2b8';
+        }
+        
+        if (elements.discarded) {
+            elements.discarded.textContent = testData.discarded;
+            elements.discarded.style.color = '#28a745';
+        }
+        
+        if (elements.pending) {
+            elements.pending.textContent = testData.pending;
+            elements.pending.style.color = '#e67e22';
+        }
+        
+        if (elements.progress) {
+            elements.progress.textContent = testData.percentage + '%';
+            elements.progress.style.color = '#6f42c1';
+        }
+        
+        if (elements.progressBar) {
+            elements.progressBar.style.width = testData.percentage + '%';
+            elements.progressBar.setAttribute('aria-valuenow', testData.percentage);
+        }
+        
+        console.log('✅ Dashboard actualizado con datos de prueba:', testData);
+        return 'Dashboard actualizado manualmente';
+    };
+
+    // Function to force dashboard horizontal layout
+    window.forceDashboardLayout = function() {
+        console.log('🔧 FORZANDO LAYOUT HORIZONTAL DEL DASHBOARD');
+        
+        const dashboard = document.querySelector('#orion-dashboard');
+        const cardsRow = document.querySelector('.dashboard-cards-row');
+        const cards = document.querySelectorAll('.dashboard-card');
+        
+        if (!dashboard || !cardsRow) {
+            console.error('❌ No se encontraron elementos del dashboard');
+            return false;
+        }
+        
+        console.log('📊 Elementos encontrados:', {
+            dashboard: !!dashboard,
+            cardsRow: !!cardsRow,
+            cards: cards.length
+        });
+        
+        // Force styles on container
+        dashboard.style.cssText = `
+            display: block !important;
+            width: 100% !important;
+            margin: 20px 0 !important;
+            padding: 25px !important;
+            background: #ffffff !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid #e9ecef !important;
+        `;
+        
+        // Force styles on cards row
+        cardsRow.style.cssText = `
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 20px !important;
+            justify-content: space-between !important;
+            align-items: stretch !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow-x: auto !important;
+        `;
+        
+        // Force styles on individual cards
+        cards.forEach((card, index) => {
+            card.style.cssText = `
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 1 1 0% !important;
+                min-width: 200px !important;
+                max-width: none !important;
+                background: #ffffff !important;
+                border-radius: 12px !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+                border: 2px solid #e9ecef !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+            `;
+        });
+        
+        console.log('✅ Layout horizontal forzado en', cards.length, 'tarjetas');
+        return true;
+    };
+
+    // Auto-force layout after DOM is loaded
+    setTimeout(() => {
+        if (window.forceDashboardLayout) {
+            console.log('🚀 Auto-aplicando layout horizontal del dashboard...');
+            window.forceDashboardLayout();
+        }
+    }, 1000);
+    
+    // Debug function for dashboard issues
+    window.debugDashboard = function() {
+        console.log('🔍 === DASHBOARD DEBUG REPORT ===');
+        
+        const dashboard = document.querySelector('#orion-dashboard');
+        const cardsRow = document.querySelector('.dashboard-cards-row');
+        const cards = document.querySelectorAll('.dashboard-card');
+        const elements = {
+            total: document.querySelector('#total-materials'),
+            discarded: document.querySelector('#discarded-materials'),
+            pending: document.querySelector('#pending-materials'),
+            progress: document.querySelector('#progress-percentage'),
+            progressBar: document.querySelector('#progress-bar')
+        };
+        
+        console.log('📊 Elements found:', {
+            dashboard: !!dashboard,
+            cardsRow: !!cardsRow,
+            cardsCount: cards.length,
+            totalElement: !!elements.total,
+            discardedElement: !!elements.discarded,
+            pendingElement: !!elements.pending,
+            progressElement: !!elements.progress,
+            progressBarElement: !!elements.progressBar
+        });
+        
+        if (dashboard) {
+            const dashboardStyles = window.getComputedStyle(dashboard);
+            console.log('🎨 Dashboard computed styles:', {
+                display: dashboardStyles.display,
+                width: dashboardStyles.width,
+                visibility: dashboardStyles.visibility,
+                opacity: dashboardStyles.opacity,
+                position: dashboardStyles.position
+            });
+        }
+        
+        if (cardsRow) {
+            const cardsRowStyles = window.getComputedStyle(cardsRow);
+            console.log('🎨 Cards row computed styles:', {
+                display: cardsRowStyles.display,
+                flexDirection: cardsRowStyles.flexDirection,
+                flexWrap: cardsRowStyles.flexWrap,
+                justifyContent: cardsRowStyles.justifyContent,
+                alignItems: cardsRowStyles.alignItems,
+                gap: cardsRowStyles.gap
+            });
+        }
+        
+        console.log('📋 Card contents:');
+        elements.total && console.log('  Total:', elements.total.textContent);
+        elements.discarded && console.log('  Discarded:', elements.discarded.textContent);
+        elements.pending && console.log('  Pending:', elements.pending.textContent);
+        elements.progress && console.log('  Progress:', elements.progress.textContent);
+        
+        // Check table manager
+        console.log('🔧 Table Manager Status:', {
+            available: !!window.discardsTableManager,
+            initialized: window.discardsTableManager?.isInitialized?.(),
+            updateDashboard: typeof window.discardsTableManager?.updateDashboard,
+            getDashboardStats: typeof window.discardsTableManager?.getDashboardStats
+        });
+        
+        // Test manual dashboard update
+        if (window.discardsTableManager && window.discardsTableManager.updateDashboard) {
+            console.log('� Testing manual dashboard update...');
+            try {
+                window.discardsTableManager.updateDashboard();
+                console.log('✅ Manual update completed');
+            } catch (error) {
+                console.error('❌ Manual update failed:', error);
+            }
+        }
+        
+        console.log('�🔍 === END DEBUG REPORT ===');
+        return 'Debug completed - check console for details';
+    };
+    
+    // Quick dashboard update function
+    window.quickUpdateDashboard = function() {
+        console.log('⚡ Quick Dashboard Update');
+        
+        if (!window.discardsTableManager) {
+            console.error('❌ Table Manager not available');
+            return false;
+        }
+        
+        if (!window.discardsTableManager.isInitialized()) {
+            console.error('❌ Table Manager not initialized');
+            return false;
+        }
+        
+        try {
+            const stats = window.discardsTableManager.getDashboardStats();
+            console.log('📊 Current stats:', stats);
+            
+            // Update elements directly
+            const elements = {
+                total: document.querySelector('#total-materials'),
+                discarded: document.querySelector('#discarded-materials'),
+                pending: document.querySelector('#pending-materials'),
+                progress: document.querySelector('#progress-percentage'),
+                progressBar: document.querySelector('#progress-bar')
+            };
+            
+            if (elements.total) elements.total.textContent = stats.total;
+            if (elements.discarded) elements.discarded.textContent = stats.discarded;
+            if (elements.pending) elements.pending.textContent = stats.pending;
+            if (elements.progress) elements.progress.textContent = stats.percentage + '%';
+            if (elements.progressBar) {
+                elements.progressBar.style.width = stats.percentage + '%';
+                elements.progressBar.setAttribute('aria-valuenow', stats.percentage);
+            }
+            
+            console.log('✅ Dashboard updated directly');
+            return true;
+        } catch (error) {
+            console.error('❌ Quick update failed:', error);
+            return false;
+        }
+    };
+    
+    // Aggressive dashboard updater - ejecuta sin importar el estado
+    window.aggressiveDashboardUpdate = function() {
+        console.log('💪 AGGRESSIVE DASHBOARD UPDATE');
+        
+        const elements = {
+            total: document.querySelector('#total-materials'),
+            discarded: document.querySelector('#discarded-materials'),
+            pending: document.querySelector('#pending-materials'),
+            progress: document.querySelector('#progress-percentage'),
+            progressBar: document.querySelector('#progress-bar')
+        };
+        
+        console.log('📊 Elements available:', {
+            total: !!elements.total,
+            discarded: !!elements.discarded,
+            pending: !!elements.pending,
+            progress: !!elements.progress,
+            progressBar: !!elements.progressBar
+        });
+        
+        // Method 1: Try table manager stats
+        let stats = null;
+        if (window.discardsTableManager && 
+            window.discardsTableManager.isInitialized && 
+            window.discardsTableManager.isInitialized()) {
+            
+            try {
+                stats = window.discardsTableManager.getDashboardStats();
+                console.log('📈 Stats from table manager:', stats);
+            } catch (error) {
+                console.error('❌ Error getting table manager stats:', error);
+            }
+        }
+        
+        // Method 2: Calculate stats directly from table
+        if (!stats && window.discardsTableManager && window.discardsTableManager.table) {
+            try {
+                const table = window.discardsTableManager.table;
+                const data = table.data();
+                const total = data.count();
+                
+                let discarded = 0;
+                data.each(function(rowData, index) {
+                    if (rowData && rowData.status === '✅') {
+                        discarded++;
+                    }
+                });
+                
+                const pending = total - discarded;
+                const percentage = total > 0 ? Math.round((discarded / total) * 100) : 0;
+                
+                stats = { total, discarded, pending, percentage };
+                console.log('📊 Stats calculated directly:', stats);
+                
+            } catch (error) {
+                console.error('❌ Error calculating stats directly:', error);
+            }
+        }
+        
+        // Method 3: Use default/test values if nothing else works
+        if (!stats) {
+            stats = { total: 0, discarded: 0, pending: 0, percentage: 0 };
+            console.log('📝 Using default stats:', stats);
+        }
+        
+        // Force update elements
+        let updated = false;
+        
+        if (elements.total) {
+            elements.total.textContent = stats.total;
+            elements.total.style.color = '#17a2b8';
+            console.log('✅ Total updated to:', stats.total);
+            updated = true;
+        }
+        
+        if (elements.discarded) {
+            elements.discarded.textContent = stats.discarded;
+            elements.discarded.style.color = '#28a745';
+            console.log('✅ Discarded updated to:', stats.discarded);
+            updated = true;
+        }
+        
+        if (elements.pending) {
+            elements.pending.textContent = stats.pending;
+            elements.pending.style.color = '#e67e22';
+            console.log('✅ Pending updated to:', stats.pending);
+            updated = true;
+        }
+        
+        if (elements.progress) {
+            elements.progress.textContent = stats.percentage + '%';
+            elements.progress.style.color = '#6f42c1';
+            console.log('✅ Progress updated to:', stats.percentage + '%');
+            updated = true;
+        }
+        
+        if (elements.progressBar) {
+            elements.progressBar.style.width = stats.percentage + '%';
+            elements.progressBar.setAttribute('aria-valuenow', stats.percentage);
+            
+            // Color based on progress
+            if (stats.percentage >= 80) {
+                elements.progressBar.style.background = 'linear-gradient(90deg, #28a745, #20c997)';
+            } else if (stats.percentage >= 50) {
+                elements.progressBar.style.background = 'linear-gradient(90deg, #ffc107, #fd7e14)';
+            } else {
+                elements.progressBar.style.background = 'linear-gradient(90deg, #6f42c1, #8e44ad)';
+            }
+            
+            console.log('✅ Progress bar updated to:', stats.percentage + '%');
+            updated = true;
+        }
+        
+        console.log('💪 Aggressive update result:', updated ? 'SUCCESS' : 'FAILED');
+        return { success: updated, stats: stats };
+    };
+    
+    // Auto-aggressive update timer
+    window.startAgressiveDashboardTimer = function() {
+        console.log('🚀 Starting aggressive dashboard timer...');
+        
+        // Clear any existing timer
+        if (window.aggressiveTimer) {
+            clearInterval(window.aggressiveTimer);
+        }
+        
+        // Update every 2 seconds
+        window.aggressiveTimer = setInterval(() => {
+            // Only update if elements exist
+            const totalElement = document.querySelector('#total-materials');
+            if (totalElement) {
+                window.aggressiveDashboardUpdate();
+            }
+        }, 2000);
+        
+        // Initial update
+        setTimeout(() => {
+            window.aggressiveDashboardUpdate();
+        }, 500);
+        
+        return 'Aggressive timer started';
+    };
+    
+    // Auto-start aggressive timer after DOM is ready
+    setTimeout(() => {
+        console.log('🚀 Auto-starting aggressive dashboard timer...');
+        if (document.querySelector('#orion-dashboard')) {
+            window.startAgressiveDashboardTimer();
+        }
+    }, 2000);
+    
+    // Master dashboard test function
+    window.testAllDashboardMethods = function() {
+        console.log('🧪 === TESTING ALL DASHBOARD METHODS ===');
+        
+        const methods = [
+            'debugDashboard',
+            'quickUpdateDashboard', 
+            'aggressiveDashboardUpdate',
+            'debugTableManagerDashboard',
+            'forceTableManagerDashboardUpdate',
+            'forceDirectDashboardUpdate'
+        ];
+        
+        methods.forEach(method => {
+            if (window[method]) {
+                console.log(`🔧 Testing ${method}...`);
+                try {
+                    const result = window[method]();
+                    console.log(`✅ ${method} result:`, result);
+                } catch (error) {
+                    console.error(`❌ ${method} error:`, error);
+                }
+            } else {
+                console.log(`⚠️ ${method} not available`);
+            }
+        });
+        
+        console.log('🧪 === END TESTING ===');
+        return 'All tests completed - check console for results';
     };
     
     console.log('App: Global exports configured');

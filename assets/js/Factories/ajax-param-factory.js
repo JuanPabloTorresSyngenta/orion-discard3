@@ -29,6 +29,7 @@ jQuery(document).ready(function ($) {
     
     // STRICT VALIDATION: At least one critical check AND one secondary check must pass
     const hasCritical = criticalChecks.some(check => check === true);
+    
     const hasSecondary = secondaryChecks.some(check => check === true);
     
     const isValid = hasCritical && hasSecondary;
@@ -58,7 +59,9 @@ jQuery(document).ready(function ($) {
   window.Factory.BuildAjaxParamToDownloadDropdownsData = function (site) {
     // Validar parámetro requerido
     if (!site) {
+
       console.warn('Factory: site parameter is required');
+
       return null;
     }
 
@@ -85,13 +88,17 @@ jQuery(document).ready(function ($) {
   ) {
     // Validar parámetros requeridos
     if (!recordType || !site || !year || !action) {
+
       console.warn('Factory: recordType, site, year, and action parameters are required');
+
       return null;
     }
 
     // Validar que orionDiscard esté disponible
     if (typeof orionDiscard === 'undefined' || !orionDiscard.nonce) {
+
       console.error('Factory: orionDiscard object or nonce not available');
+
       return null;
     }
 
@@ -156,13 +163,17 @@ jQuery(document).ready(function ($) {
   window.Factory.BuildAjaxParamToCheckDuplicateBarcode = function (barcode, action = 'check_duplicate_barcode') {
     // Validar parámetro requerido
     if (!barcode) {
+
       console.warn('Factory: barcode parameter is required');
+
       return null;
     }
 
     // Validar que orionDiscard esté disponible
     if (typeof orionDiscard === 'undefined' || !orionDiscard.nonce) {
+
       console.error('Factory: orionDiscard object or nonce not available');
+
       return null;
     }
 
@@ -186,7 +197,9 @@ jQuery(document).ready(function ($) {
   window.Factory.BuildAjaxParamToValidateBarcode = function (site, year, recordType, barcode) {
     // Validar parámetros requeridos
     if (!site || !year || !recordType || !barcode) {
+
       console.warn('Factory: site, year, recordType, and barcode parameters are required');
+
       return null;
     }
 

@@ -67,6 +67,7 @@ jQuery(document).ready(function($) {
             this.dataCache = new Map();
             this.barcodeIndex = new Map();
             this.postIdIndex = new Map();
+            this.dashboardUpdateInterval = null; // Para auto-actualización del dashboard
             
             // Configuration
             this.config = {
@@ -122,6 +123,16 @@ jQuery(document).ready(function($) {
                 this.stats.lastUpdate = new Date();
                 
                 console.log('Table Manager: Initialization successful');
+                
+                // Auto-update dashboard after initialization
+                setTimeout(() => {
+                    console.log('Table Manager: Auto-updating dashboard after initialization...');
+                    this.updateDashboard();
+                    
+                    // Configurar actualización periódica del dashboard
+                    this.startDashboardAutoUpdate();
+                }, 1000);
+                
                 return true;
                 
             } catch (error) {
@@ -410,9 +421,13 @@ jQuery(document).ready(function($) {
             // Update statistics
             this.updateStatistics();
             
+            // Actualizar dashboard cuando se redibuja la tabla
+            setTimeout(() => {
+                this.updateDashboard();
+            }, 100);
+            
             // Performance logging
             if (this.stats.updateCount % 10 === 0) {
-
                 console.log('Table Manager: Performance stats:', this.getPerformanceStats());
             }
         }
@@ -568,6 +583,17 @@ jQuery(document).ready(function($) {
                 this.stats.lastUpdate = new Date();
                 
                 console.log('✅ Table Manager: Update completed successfully with', normalizedData.length, 'records');
+                
+                // Actualizar dashboard después de actualizar tabla
+                console.log('🔄 Table Manager: Updating dashboard after table update...');
+                this.updateDashboard();
+                
+                // Fallback: force direct update
+                setTimeout(() => {
+                    console.log('🔄 Table Manager: Force direct fallback update...');
+                    this.forceDirectDashboardUpdate();
+                }, 500);
+                
                 console.log('🏁 Table Manager: ===== ENDING updateTableData SUCCESS =====');
                 return true;
                 
@@ -985,6 +1011,9 @@ jQuery(document).ready(function($) {
             if (found) {
                 this.table.draw(false); // Redraw without changing pagination
                 this.stats.searchCount++;
+                
+                // Update statistics display after successful barcode update
+                console.log('Table Manager: Statistics updated after barcode scan');
             }
             
             return found;
@@ -1152,7 +1181,14 @@ jQuery(document).ready(function($) {
             if (found) {
                 this.table.draw(false); // Redraw without changing pagination
                 this.stats.searchCount++;
-                console.log('Table Manager: Successfully updated status for', searchField, ':', searchValue, 'to', newStatus);
+                
+                // Update statistics display after successful status update
+                console.log('Table Manager: Successfully updated status for', searchField, ':', searchValue, 'to', newStatus, '- Statistics updated');
+                
+                // Actualizar el dashboard después de cambiar el estado
+                setTimeout(() => {
+                    this.updateDashboard();
+                }, 100);
             } else {
                 console.warn('Table Manager: Record not found for', searchField, ':', searchValue);
                 this.debugTableData(searchField, searchValue);
@@ -1176,33 +1212,6 @@ jQuery(document).ready(function($) {
             } catch (error) {
                 console.error('Table Manager: Error getting data:', error);
                 return [];
-            }
-        }
-        
-        /**
-         * Get enhanced table statistics
-         * @returns {Object} Statistics object
-         */
-        getStatistics() {
-            if (!this.isInitialized()) {
-                return { total: 0, completed: 0, pending: 0, performance: null };
-            }
-            
-            try {
-                const data = this.table.data().toArray();
-                const total = data.length;
-                const completed = data.filter(row => row.status === '✅').length;
-                const pending = total - completed;
-                
-                return { 
-                    total, 
-                    completed, 
-                    pending,
-                    performance: this.getPerformanceStats()
-                };
-            } catch (error) {
-                console.error('Table Manager: Error getting statistics:', error);
-                return { total: 0, completed: 0, pending: 0, performance: null };
             }
         }
         
@@ -1330,6 +1339,9 @@ jQuery(document).ready(function($) {
                 }
             }
             
+            // Detener auto-actualización del dashboard
+            this.stopDashboardAutoUpdate();
+            
             this.table = null;
             this.isReady = false;
             this.clearIndexes();
@@ -1381,6 +1393,422 @@ jQuery(document).ready(function($) {
             };
         }
         
+        // ============================================================================
+        // DASHBOARD FUNCTIONS - NUEVO SISTEMA DE ESTADÍSTICAS
+        // ============================================================================
+        
+        /**
+         * Forzar actualización directa del dashboard - método agresivo
+         */
+        forceDirectDashboardUpdate() {
+            console.log('💪 Table Manager: Force direct dashboard update...');
+            
+            try {
+                // Get stats using multiple methods
+                let stats = null;
+                
+                // Method 1: Use standard method
+                try {
+                    stats = this.getDashboardStats();
+                    console.log('📊 Stats from standard method:', stats);
+                } catch (error) {
+                    console.warn('⚠️ Standard method failed:', error);
+                }
+                
+                // Method 2: Direct table access
+                if (!stats && this.table) {
+                    try {
+                        const data = this.table.data();
+                        const total = data.count();
+                        
+                        let discarded = 0;
+                        data.each(function(rowData) {
+                            if (rowData && rowData.status === '✅') {
+                                discarded++;
+                            }
+                        });
+                        
+                        const pending = total - discarded;
+                        const percentage = total > 0 ? Math.round((discarded / total) * 100) : 0;
+                        
+                        stats = { total, discarded, pending, percentage };
+                        console.log('📊 Stats from direct method:', stats);
+                    } catch (error) {
+                        console.warn('⚠️ Direct method failed:', error);
+                    }
+                }
+                
+                // Method 3: Default values
+                if (!stats) {
+                    stats = { total: 0, discarded: 0, pending: 0, percentage: 0 };
+                    console.log('📝 Using default stats');
+                }
+                
+                // Update elements directly
+                const elements = {
+                    total: document.querySelector('#total-materials'),
+                    discarded: document.querySelector('#discarded-materials'),
+                    pending: document.querySelector('#pending-materials'),
+                    progress: document.querySelector('#progress-percentage'),
+                    progressBar: document.querySelector('#progress-bar')
+                };
+                
+                let updated = false;
+                
+                if (elements.total) {
+                    elements.total.textContent = stats.total;
+                    updated = true;
+                    console.log('✅ Direct update - Total:', stats.total);
+                }
+                
+                if (elements.discarded) {
+                    elements.discarded.textContent = stats.discarded;
+                    updated = true;
+                    console.log('✅ Direct update - Discarded:', stats.discarded);
+                }
+                
+                if (elements.pending) {
+                    elements.pending.textContent = stats.pending;
+                    updated = true;
+                    console.log('✅ Direct update - Pending:', stats.pending);
+                }
+                
+                if (elements.progress) {
+                    elements.progress.textContent = stats.percentage + '%';
+                    updated = true;
+                    console.log('✅ Direct update - Progress:', stats.percentage + '%');
+                }
+                
+                if (elements.progressBar) {
+                    elements.progressBar.style.width = stats.percentage + '%';
+                    elements.progressBar.setAttribute('aria-valuenow', stats.percentage);
+                    updated = true;
+                    console.log('✅ Direct update - Progress bar:', stats.percentage + '%');
+                }
+                
+                console.log('💪 Force direct update result:', updated ? 'SUCCESS' : 'FAILED');
+                return { success: updated, stats: stats };
+                
+            } catch (error) {
+                console.error('❌ Force direct update error:', error);
+                return { success: false, error: error.message };
+            }
+        }
+        
+        /**
+         * Obtener estadísticas actuales para el dashboard
+         */
+        getDashboardStats() {
+            console.log('Table Manager: Calculando estadísticas del dashboard...');
+            
+            if (!this.initialized || !this.table) {
+                console.warn('Table Manager: Tabla no inicializada, devolviendo estadísticas vacías');
+                console.log('Table Manager: Estado - initialized:', this.initialized, 'table:', !!this.table);
+                return {
+                    total: 0,
+                    discarded: 0,
+                    pending: 0,
+                    percentage: 0
+                };
+            }
+            
+            try {
+                const data = this.table.data();
+                const total = data.count();
+                console.log('Table Manager: Total de filas en la tabla:', total);
+                
+                if (total === 0) {
+                    console.log('Table Manager: No hay datos en la tabla');
+                    return {
+                        total: 0,
+                        discarded: 0,
+                        pending: 0,
+                        percentage: 0
+                    };
+                }
+                
+                // Debug: mostrar una muestra de los datos
+                console.log('Table Manager: Muestra de datos (primeras 3 filas):');
+                data.each(function(rowData, index) {
+                    if (index < 3) {
+                        console.log(`Fila ${index}:`, rowData);
+                    }
+                });
+                
+                // Contar materiales descartados (status = '✅')
+                let discarded = 0;
+                data.each(function(rowData, index) {
+                    if (rowData && rowData.status === '✅') {
+                        discarded++;
+                    }
+                });
+                
+                const pending = total - discarded;
+                const percentage = total > 0 ? Math.round((discarded / total) * 100) : 0;
+                
+                const stats = {
+                    total,
+                    discarded,
+                    pending,
+                    percentage
+                };
+                
+                console.log('Table Manager: Estadísticas calculadas:', stats);
+                return stats;
+                
+            } catch (error) {
+                console.error('Table Manager: Error calculando estadísticas:', error);
+                return {
+                    total: 0,
+                    discarded: 0,
+                    pending: 0,
+                    percentage: 0
+                };
+            }
+        }
+        
+        /**
+         * Actualizar el dashboard de estadísticas
+         */
+        updateDashboard() {
+            console.log('Table Manager: Actualizando dashboard...');
+            
+            const stats = this.getDashboardStats();
+            console.log('Table Manager: Estadísticas obtenidas:', stats);
+            
+            // Verificar que los elementos existen antes de actualizar
+            const elements = {
+                total: document.querySelector('#total-materials'),
+                discarded: document.querySelector('#discarded-materials'),
+                pending: document.querySelector('#pending-materials'),
+                progress: document.querySelector('#progress-percentage'),
+                progressBar: document.querySelector('#progress-bar')
+            };
+            
+            console.log('Table Manager: Elementos disponibles:', {
+                total: !!elements.total,
+                discarded: !!elements.discarded,
+                pending: !!elements.pending,
+                progress: !!elements.progress,
+                progressBar: !!elements.progressBar
+            });
+            
+            // Verificar que el contenedor del dashboard esté visible
+            const dashboardContainer = document.querySelector('#orion-dashboard');
+            const cardsRow = document.querySelector('.dashboard-cards-row');
+            console.log('Table Manager: Contenedores del dashboard:', {
+                container: !!dashboardContainer,
+                cardsRow: !!cardsRow,
+                containerVisible: dashboardContainer ? dashboardContainer.style.display !== 'none' : false,
+                cardsRowVisible: cardsRow ? cardsRow.style.display !== 'none' : false
+            });
+            
+            // Actualizar los números con animación solo si los elementos existen
+            if (elements.total) {
+                this.animateNumberUpdate('#total-materials', stats.total);
+                console.log('Table Manager: Total actualizado a:', stats.total);
+            } else {
+                console.warn('Table Manager: Elemento #total-materials no encontrado!');
+            }
+            
+            if (elements.discarded) {
+                this.animateNumberUpdate('#discarded-materials', stats.discarded);
+                console.log('Table Manager: Descartados actualizado a:', stats.discarded);
+            } else {
+                console.warn('Table Manager: Elemento #discarded-materials no encontrado!');
+            }
+            
+            if (elements.pending) {
+                this.animateNumberUpdate('#pending-materials', stats.pending);
+                console.log('Table Manager: Pendientes actualizado a:', stats.pending);
+            } else {
+                console.warn('Table Manager: Elemento #pending-materials no encontrado!');
+            }
+            
+            if (elements.progress) {
+                this.animateNumberUpdate('#progress-percentage', stats.percentage + '%');
+                console.log('Table Manager: Progreso actualizado a:', stats.percentage + '%');
+            } else {
+                console.warn('Table Manager: Elemento #progress-percentage no encontrado!');
+            }
+            
+            // Actualizar barra de progreso
+            if (elements.progressBar) {
+                this.updateProgressBar(stats.percentage);
+                console.log('Table Manager: Barra de progreso actualizada a:', stats.percentage + '%');
+            } else {
+                console.warn('Table Manager: Elemento #progress-bar no encontrado!');
+            }
+            
+            console.log('Table Manager: Dashboard actualizado completamente');
+        }
+        
+        /**
+         * Animar la actualización de un número en el dashboard
+         */
+        animateNumberUpdate(selector, newValue) {
+            const element = document.querySelector(selector);
+            if (!element) {
+                console.warn('Table Manager: Elemento no encontrado para actualizar:', selector);
+                return;
+            }
+            
+            console.log(`Table Manager: Actualizando ${selector} con valor:`, newValue);
+            
+            // Agregar clase de animación
+            element.classList.add('updating');
+            
+            // Actualizar valor después de un breve delay
+            setTimeout(() => {
+                element.textContent = typeof newValue === 'number' ? newValue.toLocaleString() : newValue;
+                element.classList.remove('updating');
+                console.log(`Table Manager: ${selector} actualizado a:`, element.textContent);
+            }, 200);
+        }
+        
+        /**
+         * Actualizar la barra de progreso
+         */
+        updateProgressBar(percentage) {
+            const progressBar = document.querySelector('#progress-bar');
+            if (!progressBar) {
+                console.warn('Table Manager: Barra de progreso no encontrada');
+                return;
+            }
+            
+            // Animar la barra de progreso
+            setTimeout(() => {
+                progressBar.style.width = percentage + '%';
+                progressBar.setAttribute('aria-valuenow', percentage);
+                
+                // Cambiar color basado en el progreso
+                if (percentage >= 80) {
+                    progressBar.style.background = 'linear-gradient(90deg, #28a745, #20c997)';
+                } else if (percentage >= 50) {
+                    progressBar.style.background = 'linear-gradient(90deg, #ffc107, #fd7e14)';
+                } else {
+                    progressBar.style.background = 'linear-gradient(90deg, #6f42c1, #8e44ad)';
+                }
+            }, 300);
+        }
+        
+        /**
+         * Iniciar actualización automática del dashboard
+         */
+        startDashboardAutoUpdate() {
+            // Detener cualquier timer existente
+            this.stopDashboardAutoUpdate();
+            
+            console.log('Table Manager: Iniciando auto-actualización del dashboard cada 5 segundos...');
+            
+            // Actualizar dashboard cada 5 segundos
+            this.dashboardUpdateInterval = setInterval(() => {
+                if (this.initialized && this.table && this.table.data().count() > 0) {
+                    console.log('Table Manager: Auto-actualización programada del dashboard...');
+                    this.updateDashboard();
+                }
+            }, 5000);
+        }
+        
+        /**
+         * Detener actualización automática del dashboard
+         */
+        stopDashboardAutoUpdate() {
+            if (this.dashboardUpdateInterval) {
+                console.log('Table Manager: Deteniendo auto-actualización del dashboard...');
+                clearInterval(this.dashboardUpdateInterval);
+                this.dashboardUpdateInterval = null;
+            }
+        }
+        
+        /**
+         * Inicializar el dashboard
+         */
+        initializeDashboard() {
+            console.log('Table Manager: Inicializando dashboard');
+            
+            // Verificar que existen los elementos del dashboard
+            const dashboardElements = [
+                '#total-materials',
+                '#discarded-materials', 
+                '#pending-materials',
+                '#progress-percentage',
+                '#progress-bar'
+            ];
+            
+            console.log('Table Manager: Verificando elementos del dashboard...');
+            dashboardElements.forEach(selector => {
+                const element = document.querySelector(selector);
+                console.log(`Table Manager: Elemento ${selector}:`, element ? 'ENCONTRADO' : 'NO ENCONTRADO');
+                if (element) {
+                    console.log(`Table Manager: Valor actual de ${selector}:`, element.textContent);
+                }
+            });
+            
+            const missingElements = dashboardElements.filter(selector => 
+                !document.querySelector(selector)
+            );
+            
+            if (missingElements.length > 0) {
+                console.warn('Table Manager: Elementos del dashboard faltantes:', missingElements);
+                // No devolver false si solo falta la barra de progreso
+                const criticalMissing = missingElements.filter(el => el !== '#progress-bar');
+                if (criticalMissing.length > 0) {
+                    console.error('Table Manager: Elementos críticos faltantes, no se puede inicializar dashboard');
+                    return false;
+                }
+            }
+            
+            // Verificar estado de la tabla
+            console.log('Table Manager: Estado de la tabla:', {
+                initialized: this.initialized,
+                tableExists: !!this.table,
+                tableReady: this.isReady,
+                hasData: this.table ? this.table.data().count() : 0
+            });
+            
+            // Actualizar dashboard inicialmente con datos por defecto si no hay datos
+            console.log('Table Manager: Actualizando dashboard inicial...');
+            this.updateDashboard();
+            
+            // Inicializar auto-actualización del dashboard cada 5 segundos
+            this.startDashboardAutoUpdate();
+            
+            console.log('Table Manager: Dashboard inicializado correctamente');
+            return true;
+        }
+        
+        /**
+         * Iniciar auto-actualización del dashboard
+         */
+        startDashboardAutoUpdate() {
+            // Limpiar cualquier intervalo previo
+            if (this.dashboardUpdateInterval) {
+                clearInterval(this.dashboardUpdateInterval);
+            }
+            
+            // Configurar nuevo intervalo para actualización automática
+            this.dashboardUpdateInterval = setInterval(() => {
+                if (this.initialized && this.table) {
+                    console.log('Table Manager: Auto-actualización del dashboard');
+                    this.updateDashboard();
+                }
+            }, 5000); // Actualizar cada 5 segundos
+            
+            console.log('Table Manager: Auto-actualización del dashboard iniciada');
+        }
+        
+        /**
+         * Detener auto-actualización del dashboard
+         */
+        stopDashboardAutoUpdate() {
+            if (this.dashboardUpdateInterval) {
+                clearInterval(this.dashboardUpdateInterval);
+                this.dashboardUpdateInterval = null;
+                console.log('Table Manager: Auto-actualización del dashboard detenida');
+            }
+        }
+        
         /**
          * Utility function to escape HTML
          */
@@ -1414,8 +1842,46 @@ jQuery(document).ready(function($) {
                 // Search operations
                 findByBarcode: this.findByBarcode.bind(this),
                 
-                // Statistics and debugging
-                getStatistics: this.getStatistics.bind(this),
+                // Dashboard functions
+                getDashboardStats: this.getDashboardStats.bind(this),
+                updateDashboard: this.updateDashboard.bind(this),
+                initializeDashboard: this.initializeDashboard.bind(this),
+                
+                // Dashboard debug function
+                debugDashboard: function() {
+                    console.log('🔍 Dashboard Debug Report:');
+                    
+                    const elements = {
+                        container: document.querySelector('#orion-dashboard'),
+                        title: document.querySelector('.dashboard-title'),
+                        cardsRow: document.querySelector('.dashboard-cards-row'),
+                        total: document.querySelector('#total-materials'),
+                        discarded: document.querySelector('#discarded-materials'),
+                        pending: document.querySelector('#pending-materials'),
+                        progress: document.querySelector('#progress-percentage'),
+                        progressBar: document.querySelector('#progress-bar')
+                    };
+                    
+                    console.log('Elements found:', Object.fromEntries(
+                        Object.entries(elements).map(([key, el]) => [key, !!el])
+                    ));
+                    
+                    if (elements.container) {
+                        console.log('Dashboard container HTML:', elements.container.outerHTML.substring(0, 300) + '...');
+                    }
+                    
+                    const stats = this.getDashboardStats();
+                    console.log('Current stats:', stats);
+                    
+                    return {
+                        elements,
+                        stats,
+                        tableInitialized: this.initialized,
+                        hasTable: !!this.table
+                    };
+                }.bind(this),
+                
+                // Debugging
                 debugPostIds: this.debugPostIds.bind(this),
                 debugBarcodeSearch: this.debugBarcodeSearch.bind(this),
                 getPerformanceStats: this.getPerformanceStats.bind(this),
@@ -1512,4 +1978,93 @@ jQuery(document).ready(function($) {
         }
     }, 500);
     
+    // Dashboard debug and manual update functions
+    window.debugTableManagerDashboard = function() {
+        console.log('🔍 === TABLE MANAGER DASHBOARD DEBUG ===');
+        
+        if (!window.discardsTableManager) {
+            console.error('❌ Table Manager not available');
+            return false;
+        }
+        
+        const manager = window.discardsTableManager;
+        console.log('📊 Manager status:', {
+            initialized: manager.isInitialized(),
+            hasTable: !!manager.table,
+            tableHasData: manager.table ? manager.table.data().count() : 0
+        });
+        
+        // Test stats calculation
+        try {
+            const stats = manager.getDashboardStats();
+            console.log('📈 Current stats:', stats);
+        } catch (error) {
+            console.error('❌ Error getting stats:', error);
+        }
+        
+        // Test elements existence
+        const elements = {
+            total: document.querySelector('#total-materials'),
+            discarded: document.querySelector('#discarded-materials'),
+            pending: document.querySelector('#pending-materials'),
+            progress: document.querySelector('#progress-percentage'),
+            progressBar: document.querySelector('#progress-bar')
+        };
+        
+        console.log('🎯 Dashboard elements:', {
+            total: !!elements.total,
+            discarded: !!elements.discarded,
+            pending: !!elements.pending,
+            progress: !!elements.progress,
+            progressBar: !!elements.progressBar
+        });
+        
+        // Show current values
+        if (elements.total) console.log('  Total current value:', elements.total.textContent);
+        if (elements.discarded) console.log('  Discarded current value:', elements.discarded.textContent);
+        if (elements.pending) console.log('  Pending current value:', elements.pending.textContent);
+        if (elements.progress) console.log('  Progress current value:', elements.progress.textContent);
+        
+        console.log('🔍 === END DASHBOARD DEBUG ===');
+        return true;
+    };
+    
+    // Manual dashboard update function
+    window.forceTableManagerDashboardUpdate = function() {
+        console.log('🔄 === FORCING DASHBOARD UPDATE ===');
+        
+        if (!window.discardsTableManager || !window.discardsTableManager.isInitialized()) {
+            console.error('❌ Table Manager not ready');
+            return false;
+        }
+        
+        try {
+            window.discardsTableManager.updateDashboard();
+            console.log('✅ Dashboard update completed');
+            return true;
+        } catch (error) {
+            console.error('❌ Error forcing dashboard update:', error);
+            return false;
+        }
+    };
+    
+    // Force direct dashboard update function
+    window.forceDirectDashboardUpdate = function() {
+        console.log('💪 === FORCING DIRECT DASHBOARD UPDATE ===');
+        
+        if (!window.discardsTableManager) {
+            console.error('❌ Table Manager not available');
+            return false;
+        }
+        
+        try {
+            const result = window.discardsTableManager.forceDirectDashboardUpdate();
+            console.log('✅ Direct dashboard update result:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ Error forcing direct dashboard update:', error);
+            return false;
+        }
+    };
+
 });

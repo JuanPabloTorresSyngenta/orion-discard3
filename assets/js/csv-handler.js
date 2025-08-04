@@ -463,12 +463,15 @@ jQuery(document).ready(function($) {
          * Process records in chunks for better performance and memory usage
          */
         async processRecordsInChunks(records, chunkSize = 1000) {
+
             console.log('CSV Handler: Processing', records.length, 'records in chunks');
             
             const processedRecords = [];
             
             for (let i = 0; i < records.length; i += chunkSize) {
+
                 const chunk = records.slice(i, i + chunkSize);
+
                 const processedChunk = chunk.map((record, index) => 
                     this.normalizeRecord(record, i + index)
                 );
@@ -477,11 +480,13 @@ jQuery(document).ready(function($) {
                 
                 // Allow UI to breathe between chunks
                 if (processedRecords.length % chunkSize === 0) {
+
                     await this.sleep(1);
                 }
             }
             
             console.log('CSV Handler: Record processing complete');
+
             return processedRecords;
         }
         
@@ -494,6 +499,7 @@ jQuery(document).ready(function($) {
         normalizeRecord(record, index) {
             // Enhanced post_id handling - preserve original post_id for scanning
             const postId = record.post_id || record.id || record.record_id || `record_${index}_${Date.now()}`;
+
             const recordId = record.id || record.record_id || postId;
             
             // CRITICAL: Extract and preserve barcode for internal scanner functionality
@@ -503,6 +509,7 @@ jQuery(document).ready(function($) {
             // IMPORTANT: Handle pre-discarded materials
             // If isDiscarded is true, set status to ✅ immediately
             const isAlreadyDiscarded = record.isDiscarded === true || record.isDiscarded === 'true' || record.isDiscarded === 1;
+
             const recordStatus = isAlreadyDiscarded ? '✅' : (record.status || this.config.defaultStatus);
             
             return {
@@ -540,26 +547,31 @@ jQuery(document).ready(function($) {
          * Update table with processed data - simplified version
          */
         async updateTableWithData(data, fieldName) {
+
             console.log('CSV Handler: Updating table with', data.length, 'processed records');
             
             // Simple verification
             if (!this.verifyTableManager()) {
+
                 throw new Error('Gestor de tabla no disponible o no inicializado');
             }
             
             try {
                 // Basic validation
                 if (!Array.isArray(data)) {
+
                     throw new Error('Los datos procesados no están en formato de array');
                 }
                 
                 if (data.length === 0) {
                     console.warn('CSV Handler: No data to update table with');
+
                     return true;
                 }
                 
                 // Call table manager directly
                 console.log('CSV Handler: Calling table manager updateTableData...');
+
                 console.log('CSV Handler: Data being sent to table manager:', {
                     length: data.length,
                     sample: data.slice(0, 2),
@@ -568,15 +580,45 @@ jQuery(document).ready(function($) {
                 });
                 
                 const updateResult = window.discardsTableManager.updateTableData(data);
+
                 console.log('CSV Handler: Table manager updateTableData result:', updateResult);
                 
                 if (!updateResult) {
+
                     console.error('CSV Handler: Table manager returned false');
+
                     console.error('CSV Handler: Data that failed:', data);
+
                     throw new Error('La actualización de la tabla falló');
                 }
                 
                 console.log('CSV Handler: Table update successful');
+
+                // Actualizar el dashboard después de cargar los datos
+                if (window.discardsTableManager && typeof window.discardsTableManager.updateDashboard === 'function') {
+                    console.log('CSV Handler: Updating dashboard after data load...');
+                    window.discardsTableManager.updateDashboard();
+                } else {
+                    console.warn('CSV Handler: Dashboard update function not available');
+                }
+                
+                // Fallback: aggressive dashboard update
+                setTimeout(() => {
+                    console.log('CSV Handler: Fallback aggressive dashboard update...');
+                    if (window.aggressiveDashboardUpdate) {
+                        window.aggressiveDashboardUpdate();
+                    }
+                }, 500);
+                
+                // Another fallback after 2 seconds
+                setTimeout(() => {
+                    console.log('CSV Handler: Second fallback dashboard update...');
+                    if (window.aggressiveDashboardUpdate) {
+                        const result = window.aggressiveDashboardUpdate();
+                        console.log('CSV Handler: Second fallback result:', result);
+                    }
+                }, 2000);
+
                 this.showDataStatistics(data, fieldName);
                 
                 return true;
@@ -655,6 +697,7 @@ jQuery(document).ready(function($) {
             
             // Success message with enhanced info
             const completedInfo = stats.completed > 0 ? ` (${stats.completed} ya descartados)` : '';
+
             this.showMessage(`✅ ${fieldName}: ${stats.total} registros cargados${completedInfo}`, 'success');
         }
         
