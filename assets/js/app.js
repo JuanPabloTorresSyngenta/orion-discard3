@@ -62,7 +62,7 @@ jQuery(document).ready(function($) {
     const config = {
         site: orionDiscard.site || "PRSA",
         year: orionDiscard.year || new Date().getFullYear(),
-        apiUrl: "http://192.168.96.84:8080/orion/wp-json/orion-maps-fields/v1/fields",
+        apiUrl: "http://orion.test:8080//orion/wp-json/orion-maps-fields/v1/fields",
         barcodeTimeout: 300,
         maxInitAttempts: 10,
         retryDelay: 200,
